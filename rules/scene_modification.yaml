@@ -1,6 +1,6 @@
 uid: jag_rules:scene_modification
-label: Scene Activation
-description: Activate all the items stored in a Scene Controller
+label: Scene Modification
+description: Respond to Scene Control Widget events and modify scene information accordingly
 configDescriptions:
   - name: sceneModifier
     type: TEXT
