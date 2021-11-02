@@ -3,7 +3,7 @@ tags: []
 props:
   parameters:
     - context: item
-      default: Rule_SceneModify
+      defaultValue: Rule_SceneModify
       description: Proxy item to run scene modification rule
       label: Rule Item
       name: ruleItem
