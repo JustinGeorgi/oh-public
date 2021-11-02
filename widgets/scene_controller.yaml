@@ -1,0 +1,217 @@
+uid: jag_widgets:scene_controller
+tags: []
+props:
+  parameters:
+    - context: item
+      default: Rule_SceneModify
+      description: Proxy item to run scene modification rule
+      label: Rule Item
+      name: ruleItem
+      required: false
+      type: TEXT
+      groupName: general
+  parameterGroups:
+    - name: general
+      label: General settings
+component: oh-list-card
+config:
+  accordionList: true
+  title: Scene controllers
+slots:
+  default:
+    - component: oh-repeater
+      config:
+        accordionList: true
+        fetchMetadata: ActiveItems
+        for: controller
+        fragment: true
+        itemTags: Scene Controller
+        key: =Math.random() + items[props.ruleItem].state
+        sourceType: itemsWithTags
+      slots:
+        default:
+          - component: oh-list-item
+            config:
+              badge: "=(items[loop.controller.name].state == 'ON') ? 'Enabled' : ((items[loop.controller.name].state == 'OFF') ? 'Disabled' : 'Unknown')"
+              badgeColor: "=(items[loop.controller.name].state == 'ON') ? 'green' : ((items[loop.controller.name].state == 'OFF') ? 'red' : 'yellow')"
+              title: =loop.controller.label.split('-').at(-1)
+            slots:
+              accordion:
+                - component: oh-list
+                  slots:
+                    default:
+                      - component: oh-list
+                        config:
+                          accordionList: true
+                        slots:
+                          default:
+                            - component: oh-toggle-item
+                              config:
+                                class:
+                                  - margin-left
+                                item: =loop.controller.name
+                                title: "=(items[loop.controller.name].state == 'OFF') ? 'Enable' : 'Disable'"
+                            - component: oh-list-item
+                              config:
+                                badge: "=(!!loop.controller.metadata && !!loop.controller.metadata.ActiveItems && !!loop.controller.metadata.ActiveItems.config) ? JSON.stringify(loop.controller.metadata.ActiveItems.config).slice(1,-1).split(',').length : '0'"
+                                class:
+                                  - margin-left
+                                title: Devices
+                              slots:
+                                accordion:
+                                  - component: oh-repeater
+                                    config:
+                                      for: activeItem
+                                      fragment: true
+                                      in: =JSON.stringify(loop.controller.metadata.ActiveItems.config).slice(1,-1).split(',')
+                                    slots:
+                                      default:
+                                        - component: oh-list-item
+                                          config:
+                                            badge: =loop.activeItem.split(':')[1].slice(1,-1)
+                                            class:
+                                              - margin-left
+                                            title: =loop.activeItem.split(':')[0].slice(1,-1)
+                                          slots:
+                                            after:
+                                              - component: f7-row
+                                                config:
+                                                  style:
+                                                    padding: 10
+                                                slots:
+                                                  default:
+                                                    - component: oh-link
+                                                      config:
+                                                        action: command
+                                                        actionCommand: =loop.controller.name + ',' + loop.activeItem.split(':')[0].slice(1,-1) + ',DELETE'
+                                                        actionItem: =props.ruleItem
+                                                        iconF7: trash_circle_fill
+                                                        style:
+                                                          padding-left: 15px
+                                                    - component: oh-link
+                                                      config:
+                                                        action: command
+                                                        actionCommand: =loop.controller.name + ',' + loop.activeItem.split(':')[0].slice(1,-1) + ',REFRESH'
+                                                        actionItem: =props.ruleItem
+                                                        iconF7: arrow_2_circlepath_circle_fill
+                                                        style:
+                                                          padding-left: 15px
+                            - component: oh-list-item
+                              config:
+                                class:
+                                  - margin-left
+                                title: Add a new device...
+                              slots:
+                                after:
+                                  - component: oh-link
+                                    config:
+                                      action: variable
+                                      actionVariable: addToController
+                                      actionVariableValue: =loop.controller.name
+                                      iconF7: plus_circle_fill
+                                      popupOpen: .popup.add-item-pop
+    - component: f7-popup
+      config:
+        class:
+          - add-item-pop
+        style:
+          overflow-y: scroll
+      slots:
+        default:
+          - component: f7-card
+            config:
+              title: "='Add Items to Scene Controller: ' + vars.addToController"
+            slots:
+              default:
+                - component: oh-list
+                  config:
+                    virtualList: true
+                  slots:
+                    default:
+                      - component: f7-segmented
+                        config:
+                          raised: true
+                        slots:
+                          default:
+                            - component: oh-repeater
+                              config:
+                                for: filterType
+                                fragment: true
+                                in:
+                                  - Switch
+                                  - Dimmer
+                                  - Player
+                              slots:
+                                default:
+                                  - component: oh-button
+                                    config:
+                                      action: variable
+                                      actionVariable: ='filter'+loop.filterType
+                                      actionVariableValue: "=(!!vars['filter'+loop.filterType]) ? false : true"
+                                      active: =vars['filter'+loop.filterType]
+                                      text: =loop.filterType
+                      - component: f7-segmented
+                        config:
+                          raised: true
+                        slots:
+                          default:
+                            - component: oh-repeater
+                              config:
+                                for: filterType
+                                fragment: true
+                                in:
+                                  - Roller
+                                  - Color
+                                  - Number
+                              slots:
+                                default:
+                                  - component: oh-button
+                                    config:
+                                      action: variable
+                                      actionVariable: ='filter'+loop.filterType
+                                      actionVariableValue: "=(!!vars['filter'+loop.filterType]) ? false : true"
+                                      active: =vars['filter'+loop.filterType]
+                                      text: =loop.filterType
+                      - component: f7-row
+                        config:
+                          style:
+                            align-items: center
+                        slots:
+                          default:
+                            - component: oh-icon
+                              config:
+                                color: gray
+                                icon: f7:search
+                            - component: oh-input
+                              config:
+                                clearButton: true
+                                outline: true
+                                placeholder: "  type to search"
+                                style:
+                                  flex-grow: 10
+                                type: text
+                                variable: filterText
+                      - component: oh-repeater
+                        config:
+                          filter: "((!!vars.filterSwitch && loop.ohItem.type=='Switch') || (!!vars.filterPlayer && loop.ohItem.type=='Player') || (!!vars.filterDimmer && loop.ohItem.type=='Dimmer') || (!!vars.filterRoller && loop.ohItem.type=='Rollershutter') || (!!vars.filterColor && loop.ohItem.type=='Color') || (!!vars.filterNumber && loop.ohItem.type.substring(0,6)=='Number') || (!!vars.filterText && loop.ohItem.name.includes(vars.filterText))) ? true : false"
+                          for: ohItem
+                          fragment: true
+                          itemTags: ","
+                          sourceType: itemsWithTags
+                        slots:
+                          default:
+                            - component: oh-list-item
+                              config:
+                                after: =loop.ohItem.state
+                                title: =loop.ohItem.label + ' (' + loop.ohItem.name + ')'
+                              slots:
+                                after:
+                                  - component: oh-link
+                                    config:
+                                      action: command
+                                      actionCommand: =vars.addToController + ',' + loop.ohItem.name + ',ADD'
+                                      actionFeedback: =loop.ohItem.name + ' (' + loop.ohItem.state + ') added to ' + vars.addToController
+                                      actionItem: =props.ruleItem
+                                      iconF7: arrow_right_circle_fill
+                                      style:
+                                        padding-left: 15px
