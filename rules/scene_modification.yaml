@@ -1,0 +1,120 @@
+uid: jag_rules:scene_modification
+label: Scene Activation
+description: Activate all the items stored in a Scene Controller
+configDescriptions:
+  - name: sceneModifier
+    type: TEXT
+    context: item
+    label: Scene Widget Item
+    required: true
+    description: Name of the proxy item used by the scene contol widget
+triggers:
+  - id: "1"
+    configuration:
+      itemName: ${sceneModifier}
+    type: core.ItemStateChangeTrigger
+conditions:
+  - inputs: {}
+    id: "3"
+    configuration:
+      itemName: ${sceneModifier}
+      state: None
+      operator: "!="
+    type: core.ItemStateCondition
+actions:
+  - inputs: {}
+    id: "2"
+    configuration:
+      type: application/javascript
+      script: >-
+        /*
+
+        This rule enacts changes to scene settings for the scene control system.
+
+        */
+
+
+        //Set Logger
+
+        var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.ModifyScene');
+
+
+        //Access MetadataRegistry
+
+        var FrameworkUtil = Java.type("org.osgi.framework.FrameworkUtil");
+
+        var _bundle = FrameworkUtil.getBundle(scriptExtension.class);
+
+        var bundle_context = _bundle.getBundleContext()
+
+        var classname = "org.openhab.core.items.MetadataRegistry"
+
+        var MetadataRegistry_Ref = bundle_context.getServiceReference(classname);
+
+        var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
+
+        var Metadata = Java.type("org.openhab.core.items.Metadata");
+
+        var MetadataKey = Java.type("org.openhab.core.items.MetadataKey");
+
+
+        //Combine metadata configurations function
+
+        _merge_configuration = function(metadata_configuration, new_configuration) {
+        	var merged_configuration = {};
+        	for (var property in metadata_configuration) {
+        		merged_configuration[property] = metadata_configuration[property];
+        	}
+
+        	for (var property in new_configuration) {
+        		merged_configuration[property] = new_configuration[property];
+        	}
+        	return merged_configuration;
+        }
+
+
+        //Collect all info from scene modify item state and existing metadata
+
+        var modifyInfo = items[event.itemName].toString().split(',')
+
+        var controllerName = modifyInfo[0];
+
+        var targetName = modifyInfo[1];
+
+        var modification = modifyInfo[2];
+
+        var metadata = MetadataRegistry.get(new MetadataKey("ActiveItems",controllerName));
+
+
+        //Take metadata write/delete action based on modification
+
+        if (modification == 'ADD' || modification == 'REFRESH') {
+          //Format metadata to write
+          var targetState = items[targetName].toString();
+          var targetData={};
+          targetData[targetName]=targetState;
+
+          //Write metadata
+          if (metadata === null) {
+            MetadataRegistry.add(new Metadata(new MetadataKey('ActiveItems', controllerName), null, targetData));
+          } else {
+            value = metadata.value;
+            var new_configuration = _merge_configuration(metadata.configuration, targetData);
+            MetadataRegistry.update(new Metadata(new MetadataKey('ActiveItems', controllerName), value, new_configuration));
+          }
+
+        } else { 
+          //Remove metadata
+          var new_configuration = _merge_configuration(metadata.configuration, {});
+          delete new_configuration[targetName];
+          MetadataRegistry.remove(new MetadataKey('ActiveItems', controllerName));
+          MetadataRegistry.add(new Metadata(new MetadataKey('ActiveItems', controllerName), metadata.value, new_configuration));
+        }
+
+
+        //Cleanup
+
+        logger.info([modification,targetName,'in',controllerName].join(' '));
+
+        events.postUpdate(event.itemName,'None');
+    type: script.ScriptAction
