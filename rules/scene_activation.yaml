@@ -1,0 +1,87 @@
+uid: jag_rules:scene_activation
+label: Scene Activation
+description: Activate all the items stored in a Scene Controller
+configDescriptions:
+  - name: sceneController
+    type: TEXT
+    context: item
+    label: Scene Controller Item
+    required: true
+    description: Item with the Scene Controller tag that will have its assoicated items activated
+  - name: undoSettings
+    type: BOOLEAN
+    label: Reverse scene settings
+    required: false
+    description: If checked, this cause the scene to be undone (e.g., OFF instead of ON)
+triggers:
+  - id: "4"
+    configuration:
+      itemName: ServerDummySwitch
+      command: ON
+    type: core.ItemCommandTrigger
+conditions:
+  - inputs: {}
+    id: "3"
+    configuration:
+      itemName: ${sceneController}
+      state: ON
+      operator: =
+    type: core.ItemStateCondition
+actions:
+  - inputs: {}
+    id: "2"
+    configuration:
+      type: application/javascript
+      script: >-
+        /*
+
+        This Script activates the items in a Scene Controllers ActiveItems metadata.
+
+        */
+
+
+        //Set Logger
+
+        var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.runController');
+
+
+        //Access MetadataRegistry
+
+        var FrameworkUtil = Java.type('org.osgi.framework.FrameworkUtil');
+
+        var _bundle = FrameworkUtil.getBundle(scriptExtension.class);
+
+        var bundle_context = _bundle.getBundleContext()
+
+        var MetadataRegistry_Ref = bundle_context.getServiceReference('org.openhab.core.items.MetadataRegistry');
+
+        var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
+
+        var MetadataKey = Java.type('org.openhab.core.items.MetadataKey');
+
+
+        //Function To Read Scene Metadata And Activate Items
+
+        run_controller = function (controllerID, undoSettings) {
+        	undoSettings = undoSettings || false;
+        	var metaList = MetadataRegistry.get(new MetadataKey('ActiveItems',controllerID));
+        	if (metaList && undoSettings) {
+        	var configList = metaList['configuration'];
+        	for (var id in configList) {
+        		events.sendCommand(id,(configList[id] == 'ON') ? 'OFF' : ((configList[id]) == 'OFF' ? 'ON' : configList[id]));
+        	};
+        	} else if (metaList) {
+        	var configList = metaList['configuration'];
+        	for (var id in configList) {
+        		events.sendCommand(id,configList[id]);
+        	};
+        	} else {
+        	logger.info(['No items currently controlled by ',controllerID].join(''));
+        	};
+        };
+
+
+        //Activate
+
+        run_controller('${sceneController}',${undoSettings})
+    type: script.ScriptAction
