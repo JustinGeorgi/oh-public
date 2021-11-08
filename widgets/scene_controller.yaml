@@ -122,6 +122,11 @@ slots:
             config:
               title: "='Add Items to Scene Controller: ' + vars.addToController"
             slots:
+              header:
+                - component: oh-link
+                  config:
+                    iconF7: xmark_circle_fill
+                    popupClose: .popup.add-item-pop
               default:
                 - component: oh-list
                   config:
