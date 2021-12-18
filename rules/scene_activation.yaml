@@ -27,14 +27,14 @@ configDescriptions:
 triggers:
   - id: "4"
     configuration:
-      itemName: ${triggerItem}
-      command: ${triggerState}
+      itemName: {{triggerItem}}
+      command: {{triggerState}}
     type: core.ItemCommandTrigger
 conditions:
   - inputs: {}
     id: "3"
     configuration:
-      itemName: ${sceneController}
+      itemName: {{sceneController}}
       state: ON
       operator: =
     type: core.ItemStateCondition
@@ -49,7 +49,10 @@ actions:
         This Script activates the items in a Scene Controllers ActiveItems metadata.
 
         */
-
+        
+        //Nashorn and JSscripting compatibility
+        
+        if(typeof(require) === "function") Object.assign(this, require('@runtime'));
 
         //Set Logger
 
@@ -60,9 +63,11 @@ actions:
 
         var FrameworkUtil = Java.type('org.osgi.framework.FrameworkUtil');
 
-        var _bundle = FrameworkUtil.getBundle(scriptExtension.class);
+        this.ScriptHandler = Java.type("org.openhab.core.automation.module.script.rulesupport.shared.ScriptedHandler");
 
-        var bundle_context = _bundle.getBundleContext()
+        var _bundle = FrameworkUtil.getBundle(ScriptHandler.class);
+        
+        var bundle_context = _bundle.getBundleContext();
 
         var MetadataRegistry_Ref = bundle_context.getServiceReference('org.openhab.core.items.MetadataRegistry');
 
@@ -94,5 +99,5 @@ actions:
 
         //Activate
 
-        run_controller('${sceneController}',${undoSettings})
+        run_controller('{{sceneController}}',{{undoSettings}})
     type: script.ScriptAction
