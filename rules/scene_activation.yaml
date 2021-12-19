@@ -22,7 +22,7 @@ configDescriptions:
   - name: undoSettings
     type: BOOLEAN
     label: Reverse scene settings
-    required: false
+    required: true
     description: If checked, this activation causes the scene to be undone (e.g., OFF instead of ON)
 triggers:
   - id: "4"
