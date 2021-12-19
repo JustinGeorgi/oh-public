@@ -27,14 +27,14 @@ configDescriptions:
 triggers:
   - id: "4"
     configuration:
-      itemName: {{triggerItem}}
-      command: {{triggerState}}
+      itemName: "{{triggerItem}}"
+      command: "{{triggerState}}"
     type: core.ItemCommandTrigger
 conditions:
   - inputs: {}
     id: "3"
     configuration:
-      itemName: {{sceneController}}
+      itemName: "{{sceneController}}"
       state: ON
       operator: =
     type: core.ItemStateCondition
