@@ -11,13 +11,13 @@ configDescriptions:
 triggers:
   - id: "1"
     configuration:
-      itemName: {{sceneModifier}}
+      itemName: "{{sceneModifier}}"
     type: core.ItemStateChangeTrigger
 conditions:
   - inputs: {}
     id: "3"
     configuration:
-      itemName: {{sceneModifier}}
+      itemName: "{{sceneModifier}}"
       state: None
       operator: "!="
     type: core.ItemStateCondition
