@@ -53,7 +53,7 @@ slots:
                                 title: "=(items[loop.controller.name].state == 'OFF') ? 'Enable' : 'Disable'"
                             - component: oh-list-item
                               config:
-                                badge: "=(!!loop.controller.metadata && !!loop.controller.metadata.ActiveItems && !!loop.controller.metadata.ActiveItems.config) ? JSON.stringify(loop.controller.metadata.ActiveItems.config).slice(1,-1).split(',').length : '0'"
+                                badge: "=(!!loop.controller.metadata && !!loop.controller.metadata.ActiveItems && !!loop.controller.metadata.ActiveItems.config) ? JSON.stringify(loop.controller.metadata.ActiveItems.config).slice(1,-1).split('\",\"').length : '0'"
                                 class:
                                   - margin-left
                                 title: Devices
@@ -63,15 +63,15 @@ slots:
                                     config:
                                       for: activeItem
                                       fragment: true
-                                      in: =JSON.stringify(loop.controller.metadata.ActiveItems.config).slice(1,-1).split(',')
+                                      in: =JSON.stringify(loop.controller.metadata.ActiveItems.config).slice(1,-1).split('","')
                                     slots:
                                       default:
                                         - component: oh-list-item
                                           config:
-                                            badge: =loop.activeItem.split(':')[1].slice(1,-1)
+                                            badge: =loop.activeItem.split(':')[1].replaceAll('"','')
                                             class:
                                               - margin-left
-                                            title: =loop.activeItem.split(':')[0].slice(1,-1)
+                                            title: =loop.activeItem.split(':')[0].replaceAll('"','')
                                           slots:
                                             after:
                                               - component: f7-row
@@ -83,7 +83,7 @@ slots:
                                                     - component: oh-link
                                                       config:
                                                         action: command
-                                                        actionCommand: =loop.controller.name + ',' + loop.activeItem.split(':')[0].slice(1,-1) + ',DELETE'
+                                                        actionCommand: =loop.controller.name + ',' + loop.activeItem.split(':')[0].replaceAll('"','') + ',DELETE'
                                                         actionItem: =props.ruleItem
                                                         iconF7: trash_circle_fill
                                                         style:
@@ -91,7 +91,7 @@ slots:
                                                     - component: oh-link
                                                       config:
                                                         action: command
-                                                        actionCommand: =loop.controller.name + ',' + loop.activeItem.split(':')[0].slice(1,-1) + ',REFRESH'
+                                                        actionCommand: =loop.controller.name + ',' + loop.activeItem.split(':')[0].replaceAll('"','') + ',REFRESH'
                                                         actionItem: =props.ruleItem
                                                         iconF7: arrow_2_circlepath_circle_fill
                                                         style:
