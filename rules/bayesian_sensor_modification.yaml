@@ -1,0 +1,167 @@
+uid: jag_rules:bayesian_sensor_modification
+label: Bayesian Sensor Modification
+description: Respond to Bayesian Sensor Info Widget events
+configDescriptions: []
+triggers:
+  - id: "1"
+    configuration:
+      itemName: Rule_BayesianModify
+    type: core.ItemStateChangeTrigger
+conditions: []
+actions:
+  - inputs: {}
+    id: "2"
+    configuration:
+      type: application/javascript;version=ECMAScript-2021
+      script: >-
+        /*
+        This Script provides functions for the bayesian sensor control system.
+        */
+
+        //Initialize
+        var runtime = require('@runtime');
+        var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.bayesianModify');
+        logger.info('Bayesian Sensor Modification')
+
+        //Access MetadataRegistry
+        var FrameworkUtil = Java.type('org.osgi.framework.FrameworkUtil');
+        this.ScriptHandler = Java.type("org.openhab.core.automation.module.script.rulesupport.shared.ScriptedHandler");
+        var _bundle = FrameworkUtil.getBundle(ScriptHandler.class);
+        var bundle_context = _bundle.getBundleContext();
+        var MetadataRegistry_Ref = bundle_context.getServiceReference('org.openhab.core.items.MetadataRegistry');
+        var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
+        var MetadataKey = Java.type('org.openhab.core.items.MetadataKey');
+        var Metadata = Java.type("org.openhab.core.items.Metadata");
+
+        //Build Default BayesianSensor Metadata
+        var defaultConfig = {
+          proxy: 'Proxy_Item_Name',
+          trueState: 'ON',
+          falseState: 'OFF',
+          prior: 0.5,
+          threshold: 0.9,
+          sensors: {
+            Item_Name: {
+              testState: 'ON',
+              pTrue: 0.75,
+              pFalse: 0.5
+            }
+          }
+        }
+
+
+        //Audit Function
+        var runAudit = function (sensorItem) {
+          var sensorMetadata =  MetadataRegistry.get(new MetadataKey('BayesianSensor',sensorItem.name));
+          if (!sensorMetadata) {
+            logger.error(sensorItem.name + ' has no BayesianSensor metadata');
+          } else {
+            var errors = [];
+            var warnings = [];
+            var sensorConfig = sensorMetadata['configuration'];
+            if (!sensorConfig) {
+              errors.push(sensorItem.name + ' BayesianSensor metadata has no configuration settings');
+              var sensorConfig = {};
+            } else {
+              if (!sensorConfig.proxy) errors.push('No proxy item set');
+              if (!sensorConfig.threshold) errors.push('threshold not set');
+              if (!sensorConfig.prior) warnings.push('prior not set - default 0.5 will be used');
+              if (!sensorConfig.trueState) warnings.push('trueState not set - default ON will be used');
+              if (!sensorConfig.falseState) warnings.push('falseState not set - default OFF will be used');
+              if (!sensorConfig.posterior) warnings.push('posterior not set - probability will not be recorded');
+              if (!sensorConfig.sensors) {
+                errors.push('sensors array not set');
+              } else {
+                var sensors = Array.from(sensorConfig.sensors.keySet());
+                if (sensors.length == 0) {
+                  errors.push('no sensors configured');
+                } else {
+                  var groupMembers = sensorItem.members;
+                  var memberNames = groupMembers.map(function(memb) {return memb.name});
+                  var extraConfigs = sensors.filter(x => !memberNames.includes(x));
+                  if (extraConfigs.length > 0) warnings.push(extraConfigs.toString() + ((extraConfigs.length == 1) ? ' is not a group member item' : ' are not group member items') + ' - configurations will be ignored');
+                  for (var groupMember of groupMembers) {
+                    if (!sensorConfig.sensors[groupMember.name]) {
+                      errors.push('No sensor configuration for group member ' + groupMember.name);
+                    } else {
+                      if (sensorConfig.sensors[groupMember.name].testState === undefined) errors.push(groupMember.name + ' has no testState');
+                      if (sensorConfig.sensors[groupMember.name].pTrue === undefined) errors.push(groupMember.name + ' has no pTrue');
+                      if (sensorConfig.sensors[groupMember.name].pFalse === undefined) errors.push(groupMember.name + ' has no pFalse');
+                      if (sensorConfig.sensors[groupMember.name].testType !== undefined && !(['gt','lt','bt','neq','list','eq']).includes(sensorConfig.sensors[groupMember.name].testType)) {
+                        warnings.push(groupMember.name + ' has invalid testType - default "equals" will be used');
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            var newConfig = {};
+            for (var property in sensorConfig) {
+              if (property != 'aduit') newConfig[property] = sensorConfig[property];
+            }
+            newConfig.audit = {};
+            if (errors.length > 0) {
+              logger.error(sensorItem.name + ' Configuration Errors:\n\t' + errors.join('\n\t'));
+              newConfig.audit.errors = {number: errors.length, list: Object.fromEntries(errors.entries())};
+            }
+            if (warnings.length > 0) {
+              logger.warn(sensorItem.name + ' Configuration Warnings:\n\t' + warnings.join('\n\t'));
+              newConfig.audit.warnings = {number: warnings.length, list: Object.fromEntries(warnings.entries())};
+            }
+            if (warnings.length == 0 && errors.length == 0) {
+              logger.info(sensorItem.name + ' Configuration Audit: Passed');
+              newConfig.audit.passed = true;
+            }
+            MetadataRegistry.update(new Metadata(new MetadataKey('BayesianSensor', sensorItem.name), sensorMetadata.value, newConfig));
+          }  
+        }
+
+        if (typeof(event) != 'undefined') {
+          /*
+          Rule triggered by change in rule item:
+          Process requested modification
+          */
+          
+          //Parse Parameters Passed Via Rule Item
+          var modifyInput = event.itemState.toString().split(',');
+          var modify = modifyInput[0];
+          var modifyItem = modifyInput[1];
+
+          //Make Requested Modificaiton
+          switch (modify) {
+            case 'CREATE':
+              items.getItem(modifyItem).addTags('Bayesian Sensor');
+              MetadataRegistry.add(new Metadata(new MetadataKey('BayesianSensor', modifyItem), ' ', defaultConfig));
+              break;
+            case 'AUDIT':
+              logger.info('Bayesian Sensor Configuration Check');
+              runAudit(items.getItem(modifyItem));
+              break;
+          }
+          
+          logger.info('Rule called via item change');
+        } else {
+          /*
+          Rule triggered directly, not by item change:
+          Instead of modification run full diagnostics
+          */
+          
+          //If Rule Item Doesn't Exist Create
+          if (!items.getItem('Rule_BayesianModify',true)) {
+            logger.info('Rule item does not exist: creating...')
+            items.addItem('Rule_BayesianModify', 'String', '', '', 'Modify Bayesian Item');
+            runtime.events.postUpdate('Rule_BayesianModify','None')
+          }
+
+          //Iterate through each sensor configuration and check for config errors and warnings
+          logger.info('Bayesian Sensor Configuration Check');
+          var sensorList = items.getItemsByTag('Bayesian Sensor');
+          if (!sensorList) logger.warn('No Bayesian Sensors Configured');
+          for (var sensor of sensorList) {
+            runAudit(sensor);
+          }
+        }
+
+        //Cleanup
+        runtime.events.postUpdate('Rule_BayesianModify','None')
+    type: script.ScriptAction
