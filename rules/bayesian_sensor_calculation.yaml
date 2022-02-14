@@ -1,0 +1,106 @@
+uid: jag_rules:bayesian_sensor_calculation
+label: Bayesian Sensor Calculation
+description: Recalculate the probability of a bayesian sensor event when some input changes
+configDescriptions:
+  - name: sensorgroup
+    type: TEXT
+    context: item
+    label: Bayesian Group
+    required: true
+    description: Group item configured with the BayesianSensor metadata
+triggers:
+  - id: "1"
+    configuration:
+      groupName: "{{sensorgroup}}"
+    type: core.GroupStateChangeTrigger
+conditions: []
+actions:
+  - inputs: {}
+    id: "2"
+    configuration:
+      type: application/javascript;version=ECMAScript-2021
+      script: >
+        /*
+        This Script provides functions for the bayesian sensor system.
+        */
+
+        //Initialize
+        var runtime = require('@runtime');
+        var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.bayesianSensor');
+        logger.info('Bayesian Sensor - Recalculating')
+
+        //Access MetadataRegistry
+        var FrameworkUtil = Java.type('org.osgi.framework.FrameworkUtil');
+        this.ScriptHandler = Java.type("org.openhab.core.automation.module.script.rulesupport.shared.ScriptedHandler");
+        var _bundle = FrameworkUtil.getBundle(ScriptHandler.class);
+        var bundle_context = _bundle.getBundleContext();
+        var MetadataRegistry_Ref = bundle_context.getServiceReference('org.openhab.core.items.MetadataRegistry');
+        var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
+        var MetadataKey = Java.type('org.openhab.core.items.MetadataKey');
+
+        //Bayesian Propability Calculation
+        function updatePrior (updPrior, updPTrue, updPFalse) {
+            var numerator = updPTrue * updPrior;
+            var denominator = numerator + updPFalse * (1 - updPrior);
+            return numerator / denominator;
+        }
+
+        //Find All Bayesian Sensor Groups for Event Item
+        var parentGroups = items.getItem(event.itemName).groupNames;
+        var sensorGroups = parentGroups.filter(x => items.getItem(x).tags.includes('Bayesian Sensor'));
+
+        //Read BayesianSensor MetaData and Iterate Through Sensors for Each Impacted Sensor Group
+        for (var sensorGroup of sensorGroups) {
+          var metaList = MetadataRegistry.get(new MetadataKey('BayesianSensor',sensorGroup));
+          if (!metaList || !metaList.configuration) {
+            logger.info(['Bayesian metadata not configured for ',sensorGroup].join(''));
+          } else {
+            var sensorConfig = metaList['configuration'];
+            var sensorList = sensorConfig.sensors;
+            var prior = sensorConfig.prior || 0.5;
+              for (var checkItem in sensorList) {
+                switch (sensorList[checkItem].testType) {
+                  case 'gt':
+                    if (runtime.items[checkItem] > sensorList[checkItem].testState) {
+                      logger.info(checkItem);
+                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                    }
+                    break;
+                  case 'lt':
+                    if (runtime.items[checkItem] < sensorList[checkItem].testState) {
+                      logger.info(checkItem);
+                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                    }
+                    break;
+                  case 'bt':
+                    if ((sensorList[checkItem].testState[0] > runtime.items[checkItem]) && (runtime.items[checkItem] > sensorList[checkItem].testState[1])) {
+                      logger.info(checkItem);
+                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                    }
+                    break;
+                  case 'neq':
+                    if (runtime.items[checkItem].toString() != sensorList[checkItem].testState) {
+                      logger.info(checkItem);
+                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                    }
+                    break;
+                  case 'list':
+                    if (sensorList[checkItem].testState.contains(runtime.items[checkItem])) {
+                      logger.info(checkItem);
+                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                    }
+                    break;
+                  default:
+                    if (runtime.items[checkItem].toString() == sensorList[checkItem].testState) {
+                      logger.info(checkItem);
+                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                    }
+                    break;
+                }
+              }
+            if (sensorConfig.posterior) runtime.events.postUpdate(sensorConfig.posterior,prior.toString());
+            runtime.events.sendCommand(sensorConfig.proxy,(prior >= sensorConfig.threshold) ? (sensorConfig.trueState || 'ON') : (sensorConfig.falseState || 'OFF'));
+            logger.info([sensorGroup + ' new probability of ',prior, (prior >= sensorConfig.threshold) ? ' is over ' : 'is under ', sensorConfig.threshold].join(''));
+          }
+        }
+    type: script.ScriptAction
