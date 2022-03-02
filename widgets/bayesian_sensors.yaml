@@ -1,0 +1,497 @@
+uid: jag_widgets:bayesian_sensors
+tags: []
+props:
+  parameters:
+    - context: rule
+      description: Linked Widget Rule
+      label: Modify Bayesian Rule
+      name: modRule
+      required: false
+      type: TEXT
+      groupName: general
+  parameterGroups:
+    - name: general
+      label: General settings
+component: f7-card
+config:
+  title: Bayesian Sensor Groups
+slots:
+  default:
+    - component: oh-list
+      config:
+        key: =Math.random() + items.Rule_BayesianModify.state
+      slots:
+        default:
+          - component: f7-list-item
+            config: {}
+            slots:
+              default:
+                - component: f7-row
+                  config:
+                    style:
+                      justify-content: flex-start
+                  slots:
+                    default:
+                      - component: f7-segmented
+                        config:
+                          visible: =!!props.modRule
+                          style:
+                            flex-basis: 15%
+                            margin-right: 5px
+                        slots:
+                          default:
+                            - component: oh-button
+                              config:
+                                action: rule
+                                actionFeedback: "=(items.Rule_BayesianModify.state != '-') ? 'Sensor Metadata Checked: See openhab.log for details' : 'Widget Initialized'"
+                                actionRule: =props.modRule
+                                fill: =(items.Rule_BayesianModify.state == '-')
+                                raised: true
+                                text: "=(items.Rule_BayesianModify.state != '-') ? 'Audit' : 'Initialize'"
+                            - component: oh-button
+                              config:
+                                disabled: =!vars.selectedSensor
+                                iconF7: arrowtriangle_down_fill
+                                iconSize: 12
+                                popoverOpen: .popover.popov-audit-menu
+                                raised: true
+                                style:
+                                  padding: 0
+                                  width: 16px
+                                visible: =(items.Rule_BayesianModify.state != '-')
+                      - component: f7-segmented
+                        config:
+                          visible: =!!props.modRule
+                          style:
+                            flex-basis: 15%
+                            margin-right: 5px
+                        slots:
+                          default:
+                            - component: oh-button
+                              config:
+                                disabled: =(items.Rule_BayesianModify.state == '-')
+                                popupOpen: .popup.pop-create-group
+                                raised: true
+                                text: Create New
+                            - component: oh-button
+                              config:
+                                disabled: =(items.Rule_BayesianModify.state == '-')
+                                iconF7: arrowtriangle_down_fill
+                                iconSize: 12
+                                popoverOpen: .popover.popov-create-menu
+                                raised: true
+                                style:
+                                  padding: 0
+                                  width: 16px
+                      - component: oh-button
+                        config:
+                          action: variable
+                          actionVariable: showResults
+                          actionVariableValue: =!vars.showResults
+                          text: "=(!!vars.showResults) ? 'Hide Audit Results' : 'Show Audit Results'"
+                          raised: true
+                          visible: =!props.modRule
+                - component: oh-button
+                  config:
+                    clearVariable: selectedSensor
+                    disabled: =!vars.selectedSensor
+                    raised: true
+                    text: Select None
+          - component: oh-repeater
+            config:
+              fetchMetadata: BayesianSensor
+              for: sensorGroup
+              fragment: true
+              itemTags: Bayesian Sensor
+              sourceType: itemsWithTags
+            slots:
+              default:
+                - component: oh-list-item
+                  config:
+                    action: variable
+                    actionVariable: selectedSensor
+                    actionVariableValue: =loop.sensorGroup
+                    checked: =!!vars.selectedSensor && (vars.selectedSensor.name == loop.sensorGroup.name)
+                    name: sensorSelectRadio
+                    noChevron: true
+                    radio: true
+                    title: =loop.sensorGroup.label
+                  slots:
+                    after:
+                      - component: f7-row
+                        config: {}
+                        slots:
+                          default:
+                            - component: Label
+                              config:
+                                style:
+                                  padding-top: 5px
+                                text: =Number(items[loop.sensorGroup.metadata.BayesianSensor.config.posterior].state).toFixed(3) + ' / ' + loop.sensorGroup.metadata.BayesianSensor.config.threshold
+                            - component: f7-chip
+                              config:
+                                iconF7: "=(!!loop.sensorGroup.metadata.BayesianSensor.config.audit) ? ((loop.sensorGroup.metadata.BayesianSensor.config.audit.errors) ? 'exclamationmark' : ((loop.sensorGroup.metadata.BayesianSensor.config.audit.warnings) ? 'flag_fill' : 'checkmark' )) : ''"
+                                mediaBgColor: "=(!!loop.sensorGroup.metadata.BayesianSensor.config.audit) ? ((loop.sensorGroup.metadata.BayesianSensor.config.audit.errors) ? 'red' : ((loop.sensorGroup.metadata.BayesianSensor.config.audit.warnings) ? 'yellow' : 'green' )) : ''"
+                                style:
+                                  margin-left: 10px
+                                text: =items[loop.sensorGroup.metadata.BayesianSensor.config.proxy].state
+                                tooltip: "=(loop.sensorGroup.metadata.BayesianSensor.config.audit) ? ((loop.sensorGroup.metadata.BayesianSensor.config.audit.passed) ? 'All checks passed' : ((loop.sensorGroup.metadata.BayesianSensor.config.audit.warnings && loop.sensorGroup.metadata.BayesianSensor.config.audit.warnings.number) || 0) + ' warnings and ' + ((loop.sensorGroup.metadata.BayesianSensor.config.audit.errors && loop.sensorGroup.metadata.BayesianSensor.config.audit.errors.number) || 0) + ' errors') : 'Metadata unaudited'"
+    - component: oh-list
+      config:
+        key: =Math.random() + (vars.selectedSensor.name || 'sensor')
+        visible: =!!vars.selectedSensor
+      slots:
+        default:
+          - component: f7-list-item
+            config:
+              groupTitle: true
+              title: Sensor Actions
+          - component: f7-list-item-row
+            config:
+              style:
+                justify-content: flex-start
+                padding-bottom: 5px
+                padding-left: 15px
+                padding-top: 5px
+            slots:
+              default:
+                - component: oh-button
+                  config:
+                    action: url
+                    actionUrl: ='/settings/items/' + vars.selectedSensor.name + '/metadata/BayesianSensor'
+                    raised: true
+                    style:
+                      margin-right: 5px
+                    text: Edit Metadata
+                - component: oh-button
+                  config:
+                    action: url
+                    actionUrl: ='/settings/items/' + vars.selectedSensor.name
+                    raised: true
+                    style:
+                      margin-right: 5px
+                    text: Edit Group Item
+                - component: oh-button
+                  config:
+                    action: analyzer
+                    actionAnalyzerItems: "=[vars.selectedSensor.metadata.BayesianSensor.config.proxy,(vars.selectedSensor.metadata.BayesianSensor.config.posterior) ? vars.selectedSensor.metadata.BayesianSensor.config.posterior : '']"
+                    raised: true
+                    style:
+                      margin-right: 5px
+                    text: Show Chart
+          - component: f7-list-item
+            config:
+              groupTitle: true
+              title: Sensor Details
+          - component: oh-repeater
+            config:
+              for: detail
+              fragment: true
+              in:
+                - label1: "Prior:"
+                  label2: "Threshold:"
+                  value1: prior
+                  value2: threshold
+                  default1: 0.5 (Default)
+                  default2: ERROR
+                - label1: "True:"
+                  label2: "False:"
+                  value1: trueState
+                  value2: falseState
+                  default1: ON (Default)
+                  default2: OFF (Default)
+                - label1: "Prob Item:"
+                  label2: "Proxy Item:"
+                  value1: posterior
+                  value2: proxy
+                  default1: None
+                  default2: ERROR
+              sourceType: array
+            slots:
+              default:
+                - component: f7-list-item-row
+                  config:
+                    style:
+                      margin-left: 15px
+                  slots:
+                    default:
+                      - component: f7-row
+                        config:
+                          style:
+                            flex: 1 1 50%
+                            justify-content: flex-start
+                            overflow: hidden
+                        slots:
+                          default:
+                            - component: Label
+                              config:
+                                style:
+                                  font-weight: bold
+                                  margin-right: 5px
+                                text: =loop.detail.label1
+                            - component: Label
+                              config:
+                                style:
+                                  overflow: hidden
+                                  text-overflow: ellipsis
+                                text: =vars.selectedSensor.metadata.BayesianSensor.config[loop.detail.value1] || loop.detail.default1
+                      - component: f7-row
+                        config:
+                          style:
+                            flex: 1 1 50%
+                            justify-content: flex-start
+                            overflow: hidden
+                        slots:
+                          default:
+                            - component: Label
+                              config:
+                                style:
+                                  font-weight: bold
+                                  margin-right: 5px
+                                text: =loop.detail.label2
+                            - component: Label
+                              config:
+                                style:
+                                  overflow: hidden
+                                  text-overflow: ellipsis
+                                text: =vars.selectedSensor.metadata.BayesianSensor.config[loop.detail.value2] || loop.detail.default2
+          - component: f7-list-item
+            config:
+              groupTitle: true
+              title: Sensor Configuration Audit
+              visible: =!!vars.showResults
+          - component: oh-list-item
+            config:
+              icon: f7:checkmark_circle_fill
+              iconColor: green
+              title: Audit passed - no errors or warnings
+              visible: =!!vars.showResults && !!vars.selectedSensor.metadata.BayesianSensor.config.audit.passed
+          - component: oh-repeater
+            config:
+              for: auditError
+              fragment: true
+              rangeStart: 1
+              rangeStop: =Number(vars.selectedSensor.metadata.BayesianSensor.config.audit.errors.number)
+              sourceType: range
+            slots:
+              default:
+                - component: oh-list-item
+                  config:
+                    icon: f7:exclamationmark_circle_fill
+                    iconColor: red
+                    title: =vars.selectedSensor.metadata.BayesianSensor.config.audit.errors.list[loop.auditError-1]
+                    visible: =!!vars.showResults
+          - component: oh-repeater
+            config:
+              for: auditWarning
+              fragment: true
+              rangeStart: 1
+              rangeStop: =Number(vars.selectedSensor.metadata.BayesianSensor.config.audit.warnings.number)
+              sourceType: range
+            slots:
+              default:
+                - component: oh-list-item
+                  config:
+                    icon: f7:flag_circle_fill
+                    iconColor: yellow
+                    title: =vars.selectedSensor.metadata.BayesianSensor.config.audit.warnings.list[loop.auditWarning-1]
+                    visible: =!!vars.showResults
+    - component: f7-popover
+      config:
+        class:
+          - popov-audit-menu
+        closeByBackdropClick: true
+        closeByOutsideClick: true
+        closeOnEscape: true
+      slots:
+        default:
+          - component: oh-list
+            slots:
+              default:
+                - component: f7-list-item
+                  slots:
+                    default:
+                      - component: oh-link
+                        config:
+                          action: command
+                          actionCommand: ='AUDIT,' + vars.selectedSensor.name
+                          actionItem: Rule_BayesianModify
+                          color: blue
+                          popoverClose: .popover.popov-audit-menu
+                          text: Audit selected only
+                - component: f7-list-item
+                  slots:
+                    default:
+                      - component: oh-link
+                        config:
+                          action: variable
+                          actionVariable: showResults
+                          actionVariableValue: =!vars.showResults
+                          text: "=(!!vars.showResults) ? 'Hide Audit Results' : 'Show Audit Results'"
+                          color: blue
+                          popoverClose: .popover.popov-audit-menu
+    - component: f7-popover
+      config:
+        class:
+          - popov-create-menu
+        closeByBackdropClick: true
+        closeByOutsideClick: true
+        closeOnEscape: true
+      slots:
+        default:
+          - component: oh-list
+            slots:
+              default:
+                - component: f7-list-item
+                  slots:
+                    default:
+                      - component: oh-link
+                        config:
+                          color: blue
+                          popupOpen: "=(items.Rule_BayesianModify.state != '-') ? '.popup.pop-new-bay-group' : ''"
+                          popoverClose: .popover.popov-create-menu
+                          text: Create New From Existing
+    - component: f7-popup
+      config:
+        class:
+          - pop-new-bay-group
+      slots:
+        default:
+          - component: f7-page
+            config:
+              style:
+                overflow-y: hidden
+            slots:
+              default:
+                - component: f7-navbar
+                  config:
+                    title: Make Group Bayesian Sensor
+                    style:
+                      position: sticky
+                  slots:
+                    left:
+                      - component: oh-link
+                        config:
+                          clearVariable: selectedGroup
+                          iconF7: arrow_left
+                          popupClose: .popup.pop-new-bay-group
+                    right:
+                      - component: oh-link
+                        config:
+                          action: command
+                          actionCommand: ='SETUP,' + vars.selectedGroup
+                          actionItem: Rule_BayesianModify
+                          clearVariable: selectedGroup
+                          text: Create
+                          visible: =!!vars.selectedGroup
+                - component: oh-list
+                  config:
+                    style:
+                      overflow-y: scroll
+                  slots:
+                    default:
+                      - component: oh-repeater
+                        config:
+                          filter: loop.ohItem.type=='Group' && !loop.ohItem.tags.includes('Bayesian Sensor')
+                          for: ohItem
+                          fragment: true
+                          itemTags: ","
+                          sourceType: itemsWithTags
+                        slots:
+                          default:
+                            - component: oh-list-item
+                              config:
+                                action: variable
+                                actionVariable: selectedGroup
+                                actionVariableValue: =loop.ohItem.name
+                                after: =loop.ohItem.name
+                                checked: =(vars.selectedGroup == loop.ohItem.name)
+                                name: groupSelectRadio
+                                radio: true
+                                title: =loop.ohItem.label
+    - component: f7-popup
+      config:
+        class:
+          - pop-create-group
+      slots:
+        default:
+          - component: f7-page
+            config:
+              style:
+                overflow-y: hidden
+            slots:
+              default:
+                - component: f7-navbar
+                  config:
+                    title: Create New Sensor Group
+                  slots:
+                    left:
+                      - component: oh-link
+                        config:
+                          clearVariable: selectedGroup
+                          iconF7: chevron_left
+                          popupClose: .popup.pop-create-group
+                          text: Cancel
+                - component: oh-list
+                  config:
+                    mediaList: true
+                    style:
+                      margin-left: 5px
+                      margin-right: 5px
+                  slots:
+                    default:
+                      - component: f7-list-item
+                        slots:
+                          title:
+                            - component: f7-row
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      style:
+                                        width: 25%
+                                      text: Name
+                                  - component: oh-input
+                                    config:
+                                      clearButton: true
+                                      defaultValue: NewGroup
+                                      errorMessage: Required. Alphanumeric & underscores only
+                                      pattern: "[A-Za-z0-9_]*"
+                                      placeholder: Name
+                                      style:
+                                        width: 75%
+                                      type: text
+                                      validate: true
+                                      variable: createGroupName
+                      - component: f7-list-item
+                        slots:
+                          title:
+                            - component: f7-row
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      style:
+                                        width: 25%
+                                      text: Label
+                                  - component: oh-input
+                                    config:
+                                      clearButton: true
+                                      defaultValue: New Group
+                                      placeholder: Label
+                                      style:
+                                        width: 75%
+                                      type: text
+                                      variable: createGroupLabel
+                - component: oh-button
+                  config:
+                    action: command
+                    actionCommand: ='CREATE,' + vars.createGroupName + ',' + vars.createGroupLabel
+                    actionItem: Rule_BayesianModify
+                    bgColor: blue
+                    fill: true
+                    large: true
+                    popupClose: .popup.pop-create-group
+                    style:
+                      margin-left: 37%
+                      width: 26%
+                    text: Create
