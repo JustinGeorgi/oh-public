@@ -49,7 +49,6 @@ actions:
           }
         }
 
-
         //Audit Function
         var runAudit = function (sensorItem) {
           var sensorMetadata =  MetadataRegistry.get(new MetadataKey('BayesianSensor',sensorItem.name));
@@ -90,6 +89,13 @@ actions:
                       if (sensorConfig.sensors[groupMember.name].testType !== undefined && !(['gt','lt','bt','neq','list','eq']).includes(sensorConfig.sensors[groupMember.name].testType)) {
                         warnings.push(groupMember.name + ' has invalid testType - default "equals" will be used');
                       }
+                      var decaySettings = sensorConfig.sensors[groupMember.name].decay;
+                      if (decaySettings !== undefined) {
+                        if (decaySettings.decayStep === undefined) errors.push(groupMember.name + ' decay set with no decayStep');
+                        if (decaySettings.timestamp === undefined) warnings.push(groupMember.name + ' has no decay timestamp - default ' + groupMember.name + '_TS will be used');
+                        if (decaySettings.timeStep === undefined) warnings.push(groupMember.name + ' has no decay timeStep - default step of 5 minutes will be used');
+                        if (decaySettings.decayMin === undefined) warnings.push(groupMember.name + ' has no decayMin - default minimum probability of 0.6 will be used');
+                      }
                     }
                   }
                 }
@@ -126,10 +132,19 @@ actions:
           var modifyInput = event.itemState.toString().split(',');
           var modify = modifyInput[0];
           var modifyItem = modifyInput[1];
+          if (modifyInput[2]) var modifySetting = modifyInput[2];
 
           //Make Requested Modificaiton
           switch (modify) {
             case 'CREATE':
+              if (!items.getItem(modifyItem,true)) {
+                logger.info('Creating new bayesian group')
+                items.addItem(modifyItem, 'Group', '', '', modifySetting || 'New Bayesian Group');
+              } else {
+                logger.error('Item name already exists: Cannot create new item')
+                break;
+              }
+            case 'SETUP':
               items.getItem(modifyItem).addTags('Bayesian Sensor');
               MetadataRegistry.add(new Metadata(new MetadataKey('BayesianSensor', modifyItem), ' ', defaultConfig));
               break;
