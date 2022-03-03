@@ -21,12 +21,14 @@ actions:
       type: application/javascript;version=ECMAScript-2021
       script: >
         /*
-        This Script provides functions for the bayesian sensor system.
+        This Script provides functions for the sensor control system.
         */
 
         //Initialize
         var runtime = require('@runtime');
         var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.bayesianSensor');
+        var ZonedDateTime = Java.type("java.time.ZonedDateTime");
+        var Duration = Java.type("java.time.Duration");
         logger.info('Bayesian Sensor - Recalculating')
 
         //Access MetadataRegistry
@@ -38,10 +40,11 @@ actions:
         var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
         var MetadataKey = Java.type('org.openhab.core.items.MetadataKey');
 
-        //Bayesian Propability Calculation
-        function updatePrior (updPrior, updPTrue, updPFalse) {
+        //Bayesian Probability Calculation
+        function updatePrior (updPrior, updPTrue, updPFalse, updItem) {
             var numerator = updPTrue * updPrior;
             var denominator = numerator + updPFalse * (1 - updPrior);
+            logger.info(updItem + ': ' + updPrior.toString() + ' -> ' + (numerator / denominator).toString());
             return numerator / denominator;
         }
 
@@ -59,41 +62,44 @@ actions:
             var sensorList = sensorConfig.sensors;
             var prior = sensorConfig.prior || 0.5;
               for (var checkItem in sensorList) {
+                if (sensorList[checkItem].decay) {
+                  var now = ZonedDateTime.now();
+                  var changedTime = items.getItem(sensorList[checkItem].decay.timestamp || checkItem + '_TS').rawState.getZonedDateTime();
+                  var decayTime = Duration.between(changedTime,now).toMinutes();
+                  var numSteps = Math.floor(decayTime / (sensorList[checkItem].decay.timeStep || 5));
+                  var probTrue = Math.max((sensorList[checkItem].decay.decayMin || .6),sensorList[checkItem].pTrue - (numSteps * sensorList[checkItem].decay.decayStep));
+                } else {
+                  var probTrue = sensorList[checkItem].pTrue;
+                }
                 switch (sensorList[checkItem].testType) {
                   case 'gt':
                     if (runtime.items[checkItem] > sensorList[checkItem].testState) {
-                      logger.info(checkItem);
-                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                      prior = updatePrior(prior, probTrue,sensorList[checkItem].pFalse,checkItem);
                     }
                     break;
                   case 'lt':
                     if (runtime.items[checkItem] < sensorList[checkItem].testState) {
-                      logger.info(checkItem);
-                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                      prior = updatePrior(prior, probTrue,sensorList[checkItem].pFalse,checkItem);
                     }
                     break;
                   case 'bt':
                     if ((sensorList[checkItem].testState[0] > runtime.items[checkItem]) && (runtime.items[checkItem] > sensorList[checkItem].testState[1])) {
-                      logger.info(checkItem);
-                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                      prior = updatePrior(prior, probTrue,sensorList[checkItem].pFalse,checkItem);
                     }
                     break;
                   case 'neq':
                     if (runtime.items[checkItem].toString() != sensorList[checkItem].testState) {
-                      logger.info(checkItem);
-                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                      prior = updatePrior(prior, probTrue,sensorList[checkItem].pFalse,checkItem);
                     }
                     break;
                   case 'list':
                     if (sensorList[checkItem].testState.contains(runtime.items[checkItem])) {
-                      logger.info(checkItem);
-                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                      prior = updatePrior(prior, probTrue,sensorList[checkItem].pFalse,checkItem);
                     }
                     break;
                   default:
                     if (runtime.items[checkItem].toString() == sensorList[checkItem].testState) {
-                      logger.info(checkItem);
-                      prior = updatePrior(prior, sensorList[checkItem].pTrue,sensorList[checkItem].pFalse);
+                      prior = updatePrior(prior, probTrue,sensorList[checkItem].pFalse,checkItem);
                     }
                     break;
                 }
