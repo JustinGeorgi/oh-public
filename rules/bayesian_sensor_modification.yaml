@@ -14,26 +14,40 @@ actions:
     configuration:
       type: application/javascript;version=ECMAScript-2021
       script: >-
-        /*
-        This Script provides functions for the bayesian sensor control system.
-        */
+        /* This Script provides functions for the bayesian sensor control
+        system. */
+
 
         //Initialize
+
         var runtime = require('@runtime');
+
         var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.bayesianModify');
-        logger.info('Bayesian Sensor Modification')
+
+        logger.info('Bayesian Sensor Modification');
+
 
         //Access MetadataRegistry
+
         var FrameworkUtil = Java.type('org.osgi.framework.FrameworkUtil');
+
         this.ScriptHandler = Java.type("org.openhab.core.automation.module.script.rulesupport.shared.ScriptedHandler");
+
         var _bundle = FrameworkUtil.getBundle(ScriptHandler.class);
+
         var bundle_context = _bundle.getBundleContext();
+
         var MetadataRegistry_Ref = bundle_context.getServiceReference('org.openhab.core.items.MetadataRegistry');
+
         var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
+
         var MetadataKey = Java.type('org.openhab.core.items.MetadataKey');
+
         var Metadata = Java.type("org.openhab.core.items.Metadata");
 
+
         //Build Default BayesianSensor Metadata
+
         var defaultConfig = {
           proxy: 'Proxy_Item_Name',
           trueState: 'ON',
@@ -49,7 +63,9 @@ actions:
           }
         }
 
+
         //Audit Function
+
         var runAudit = function (sensorItem) {
           var sensorMetadata =  MetadataRegistry.get(new MetadataKey('BayesianSensor',sensorItem.name));
           if (!sensorMetadata) {
@@ -177,6 +193,8 @@ actions:
           }
         }
 
+
         //Cleanup
+
         runtime.events.postUpdate('Rule_BayesianModify','None')
     type: script.ScriptAction
