@@ -21,26 +21,44 @@ actions:
       type: application/javascript;version=ECMAScript-2021
       script: >
         /*
+
         This Script provides functions for the sensor control system.
+
         */
 
+
         //Initialize
+
         var runtime = require('@runtime');
+
         var logger = Java.type('org.slf4j.LoggerFactory').getLogger('org.openhab.rule.bayesianSensor');
+
         var ZonedDateTime = Java.type("java.time.ZonedDateTime");
+
         var Duration = Java.type("java.time.Duration");
+
         logger.info('Bayesian Sensor - Recalculating')
 
+
         //Access MetadataRegistry
+
         var FrameworkUtil = Java.type('org.osgi.framework.FrameworkUtil');
+
         this.ScriptHandler = Java.type("org.openhab.core.automation.module.script.rulesupport.shared.ScriptedHandler");
+
         var _bundle = FrameworkUtil.getBundle(ScriptHandler.class);
+
         var bundle_context = _bundle.getBundleContext();
+
         var MetadataRegistry_Ref = bundle_context.getServiceReference('org.openhab.core.items.MetadataRegistry');
+
         var MetadataRegistry = bundle_context.getService(MetadataRegistry_Ref);
+
         var MetadataKey = Java.type('org.openhab.core.items.MetadataKey');
 
+
         //Bayesian Probability Calculation
+
         function updatePrior (updPrior, updPTrue, updPFalse, updItem) {
             var numerator = updPTrue * updPrior;
             var denominator = numerator + updPFalse * (1 - updPrior);
@@ -48,11 +66,16 @@ actions:
             return numerator / denominator;
         }
 
+
         //Find All Bayesian Sensor Groups for Event Item
+
         var parentGroups = items.getItem(event.itemName).groupNames;
+
         var sensorGroups = parentGroups.filter(x => items.getItem(x).tags.includes('Bayesian Sensor'));
 
+
         //Read BayesianSensor MetaData and Iterate Through Sensors for Each Impacted Sensor Group
+
         for (var sensorGroup of sensorGroups) {
           var metaList = MetadataRegistry.get(new MetadataKey('BayesianSensor',sensorGroup));
           if (!metaList || !metaList.configuration) {
