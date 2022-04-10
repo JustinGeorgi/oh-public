@@ -36,7 +36,7 @@ conditions:
     id: "3"
     configuration:
       itemName: "{{sceneController}}"
-      state: ON
+      state: "ON"
       operator: =
     type: core.ItemStateCondition
 actions:
