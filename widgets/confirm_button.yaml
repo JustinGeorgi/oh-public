@@ -1,0 +1,115 @@
+uid: jag_confim_button
+tags: []
+props:
+  parameters:
+    - description: Button text
+      label: Text
+      name: text
+      required: false
+      type: TEXT
+      groupName: buttonConf
+    - description: Button is raised
+      label: Raised
+      name: raised
+      required: false
+      type: BOOLEAN
+      groupName: buttonConf
+    - description: Confirmation text
+      label: Confirm Text
+      name: confirmText
+      required: false
+      type: TEXT
+      groupName: buttonConf
+      advanced: true
+    - description: Confirmation countdown duration
+      label: Duration (seconds)
+      name: countdown
+      required: false
+      type: INTEGER
+      groupName: otherConf
+    - description: Countdown progress bar color
+      label: Bar color
+      name: barColor
+      required: false
+      type: TEXT
+      groupName: otherConf
+      advanced: true
+    - description: Only works in text configuration
+      label: Style
+      name: style
+      required: false
+      type: TEXT
+      groupName: otherConf
+      advanced: true
+  parameterGroups:
+    - name: buttonConf
+      label: Button configuration options
+    - name: confirmed
+      context: action
+      label: Action with confirmation
+    - name: otherConf
+      label: Other Configurations
+timestamp: May 3, 2023, 7:04:07 PM
+component: div
+config:
+  class:
+    - button
+    - =(props.raised)?'button-raised':''
+    - no-margin
+    - no-padding
+  key: =Math.random() + ((vars.countdown && vars.countdown.toString()) || '0')
+  style: =props.style
+slots:
+  default:
+    - component: div
+      config:
+        class:
+          - cd-button
+        style:
+          --countdown-duration: =`${(props.countdown || '10')}s`
+          --countdown-background: =props.style.background
+          --countdown-bar-color: =props.barColor
+          position: relative
+        stylesheet: >
+          .cd-fade {
+            animation-name: count-down-fade;
+            animation-duration: var(--countdown-duration);
+            animation-timing-function: linear;
+            background: none, linear-gradient(90deg, var(--countdown-bar-color, var(--f7-theme-color)) 50%, var(--countdown-background, var(--f7-card-bg-color)) 50%);
+            background-size: 100% 90%, 200% 10%;
+            background-position-y: 0%, 100%;
+            background-color: var(--countdown-background, var(--f7-card-bg-color)) !important;
+            background-repeat: no-repeat;
+          }
+
+          @keyframes count-down-fade {
+            from {
+              background-position-x: 0%, 0%;
+              z-index: 2;
+            }
+            to {
+              background-position-x: 0%, 100%;
+              z-index: 2;
+            }
+          }
+      slots:
+        default:
+          - component: oh-button
+            config:
+              actionPropsParameterGroup: confirmed
+              class: =(vars.countdown && 'cd-fade')
+              clearVariable:
+                - countdown
+              text: =props.confirmText || 'Confirm'
+          - component: oh-button
+            config:
+              action: variable
+              actionVariable: countdown
+              actionVariableValue: =(vars.countdown || 0) + 1
+              style:
+                background: var(--countdown-background, var(--f7-card-bg-color))
+                left: 0
+                position: absolute
+                top: 0
+                width: 100%
+              text: =(props.text || '')
