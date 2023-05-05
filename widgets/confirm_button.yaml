@@ -49,7 +49,7 @@ props:
       label: Action with confirmation
     - name: otherConf
       label: Other Configurations
-timestamp: May 3, 2023, 7:04:07 PM
+timestamp: May 4, 2023, 8:17:08 PM
 component: div
 config:
   class:
@@ -67,7 +67,7 @@ slots:
           - cd-button
         style:
           --countdown-duration: =`${(props.countdown || '10')}s`
-          --countdown-background: =props.style.background
+          --countdown-background: =props.style && props.style.background
           --countdown-bar-color: =props.barColor
           position: relative
         stylesheet: >
@@ -75,21 +75,36 @@ slots:
             animation-name: count-down-fade;
             animation-duration: var(--countdown-duration);
             animation-timing-function: linear;
-            background: none, linear-gradient(90deg, var(--countdown-bar-color, var(--f7-theme-color)) 50%, var(--countdown-background, var(--f7-card-bg-color)) 50%);
+            background: none, linear-gradient(90deg, var(--countdown-bar-color, var(--f7-theme-color)) 50%, var(--countdown-background, var(--f7-button-bg-color)) 50%);
             background-size: 100% 90%, 200% 10%;
             background-position-y: 0%, 100%;
-            background-color: var(--countdown-background, var(--f7-card-bg-color)) !important;
+            background-color: var(--countdown-background, var(--f7-button-bg-color)) !important;
             background-repeat: no-repeat;
           }
 
           @keyframes count-down-fade {
             from {
               background-position-x: 0%, 0%;
-              z-index: 2;
+              visibility: visible;
             }
             to {
               background-position-x: 0%, 100%;
-              z-index: 2;
+              visibility: visible;
+            }
+          }
+
+          .cd-hide {
+            animation-name: count-down-hide;
+            animation-duration: var(--countdown-duration);
+            animation-timing-function: linear;
+          }
+
+          @keyframes count-down-hide {
+            from {
+              visibility: hidden;
+            }
+            to {
+              visibility: hidden;
             }
           }
       slots:
@@ -101,13 +116,16 @@ slots:
               clearVariable:
                 - countdown
               text: =props.confirmText || 'Confirm'
+              style:
+                visibility: hidden
           - component: oh-button
             config:
+              class: =(vars.countdown && 'cd-hide')
               action: variable
               actionVariable: countdown
               actionVariableValue: =(vars.countdown || 0) + 1
               style:
-                background: var(--countdown-background, var(--f7-card-bg-color))
+                background: var(--countdown-background, var(--f7-button-bg-color))
                 left: 0
                 position: absolute
                 top: 0
