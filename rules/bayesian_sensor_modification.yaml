@@ -155,7 +155,11 @@ actions:
             case 'CREATE':
               if (!items.getItem(modifyItem,true)) {
                 logger.info('Creating new bayesian group')
-                items.addItem(modifyItem, 'Group', '', '', modifySetting || 'New Bayesian Group');
+                items.addItem({
+                  name: modifyItem,
+                  type: 'Group',
+                  label: modifySetting || 'New Bayesian Group'
+                });
               } else {
                 logger.error('Item name already exists: Cannot create new item')
                 break;
@@ -180,7 +184,11 @@ actions:
           //If Rule Item Doesn't Exist Create
           if (!items.getItem('Rule_BayesianModify',true)) {
             logger.info('Rule item does not exist: creating...')
-            items.addItem('Rule_BayesianModify', 'String', '', '', 'Modify Bayesian Item');
+            items.addItem({
+              name: 'Rule_BayesianModify',
+              type: 'String',
+              label: 'Modify Bayesian Item'
+            });
             runtime.events.postUpdate('Rule_BayesianModify','None')
           }
 
