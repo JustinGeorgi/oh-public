@@ -1,0 +1,388 @@
+uid: bayesian_sensor_list
+tags: []
+props:
+  parameters:
+    - context: rule
+      default: bayesian_widget_management
+      description: Linked rule for widget functions
+      label: Bayesian Management Rule
+      name: manageRule
+      required: false
+      type: TEXT
+      groupName: general
+    - context: page
+      default: page:settings_bayesian_details
+      description: Page to display for sensor details
+      label: Bayesian Sensor Details Page
+      name: detailPage
+      required: false
+      type: TEXT
+      groupName: general
+  parameterGroups:
+    - name: general
+      label: General settings
+component: f7-block
+config:
+  class:
+    - block-narrow
+    - after-big-title
+  style:
+    justify-content: flex-start
+    height: calc(100vh - var(--f7-navbar-height) - var(--f7-tabbar-labels-height) -
+      var(--f7-safe-area-top) - var(--f7-safe-area-bottom) - 80px)
+    margin: 0
+    padding: 0
+slots:
+  default:
+    - component: f7-row
+      config:
+        style:
+          flex-direction: column
+          width: min(720px,100%)
+          justify-content: flex-start
+      slots:
+        default:
+          - component: oh-repeater
+            config:
+              for: sensorCount
+              fragment: true
+              itemTags: Bayesian Sensor
+              sourceType: itemsWithTags
+            slots:
+              default:
+                - component: f7-block-title
+                  config:
+                    visible: =(loop.sensorCount_idx==0)
+                  slots:
+                    default:
+                      - component: Label
+                        config:
+                          text: =loop.sensorCount_source.length + " Bayesain Sensors"
+          - component: f7-list
+            config:
+              mediaList: true
+              style:
+                margin: 0
+                padding: 0
+                width: 100%
+            slots:
+              default:
+                - component: oh-repeater
+                  config:
+                    fetchMetadata: BayesianSensor
+                    for: sensorGroup
+                    fragment: true
+                    itemTags: Bayesian Sensor
+                    key: =Math.random() + items.Widget_Settings_Bayesian_Sensor_Details.state
+                    sourceType: itemsWithTags
+                  slots:
+                    default:
+                      - component: oh-list-item
+                        config:
+                          action: navigate
+                          actionPage: =props.detailPage
+                          actionPageDefineVars:
+                            bayesianItem: =loop.sensorGroup.name
+                          footer: =loop.sensorGroup.name
+                          name: sensorSelectRadio
+                          title: =loop.sensorGroup.label
+                        slots:
+                          after:
+                            - component: f7-chip
+                              config:
+                                iconF7: "=(!!loop.sensorGroup.metadata.BayesianSensor.config.audit) ?
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.errors) ? 'exclamationmark' :
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.warnings) ? 'flag_fill' :
+                                  'checkmark' )) : 'question'"
+                                mediaBgColor: "=(!!loop.sensorGroup.metadata.BayesianSensor.config.audit) ?
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.errors) ? 'red' :
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.warnings) ? 'yellow' : 'green' )) :
+                                  'black'"
+                                style:
+                                  margin-left: 10px
+                                text: =Number(items[loop.sensorGroup.metadata.BayesianSensor.config.posterior].state).toFixed(3)
+                                  + ' / ' +
+                                  loop.sensorGroup.metadata.BayesianSensor.config.threshold
+                                tooltip: "=(loop.sensorGroup.metadata.BayesianSensor.config.audit) ?
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.passed) ? 'All checks passed' :
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.warnings &&
+                                  loop.sensorGroup.metadata.BayesianSensor.conf\
+                                  ig.audit.warnings.number) || 0) + ' warnings
+                                  and ' +
+                                  ((loop.sensorGroup.metadata.BayesianSensor.co\
+                                  nfig.audit.errors &&
+                                  loop.sensorGroup.metadata.BayesianSensor.conf\
+                                  ig.audit.errors.number) || 0) + ' errors') :
+                                  'Metadata unaudited'"
+    - component: f7-block
+      config:
+        style:
+          height: calc(100vh - var(--f7-navbar-height) - var(--f7-tabbar-labels-height) -
+            var(--f7-safe-area-top) - var(--f7-safe-area-bottom) - 80px)
+          position: absolute
+          top: 0
+          width: 100%
+          z-index: 0
+          margin: 0
+          padding: 0
+      slots:
+        default:
+          - component: f7-fab
+            config:
+              color: blue
+              position: right-bottom
+            slots:
+              link:
+                - component: f7-icon
+                  config:
+                    f7: plus
+                - component: f7-icon
+                  config:
+                    f7: xmark
+              root:
+                - component: f7-fab-buttons
+                  config:
+                    position: top
+                  slots:
+                    default:
+                      - component: f7-fab-button
+                        config:
+                          fabClose: true
+                          label: Create New Group
+                        slots:
+                          default:
+                            - component: oh-link
+                              config:
+                                iconF7: rectangle_stack_badge_plus
+                                popupOpen: .popup.pop-create-group
+                      - component: f7-fab-button
+                        config:
+                          fabClose: true
+                          label: Create From Existing
+                        slots:
+                          default:
+                            - component: oh-link
+                              config:
+                                iconF7: list_bullet
+                                popupOpen: .popup.pop-new-bay-group
+    - component: f7-popup
+      config:
+        class:
+          - pop-new-bay-group
+      slots:
+        default:
+          - component: f7-page
+            config:
+              style:
+                overflow-y: hidden
+            slots:
+              default:
+                - component: f7-navbar
+                  config:
+                    style:
+                      position: sticky
+                    title: Make Group Bayesian Sensor
+                  slots:
+                    left:
+                      - component: oh-link
+                        config:
+                          clearVariable: selectedGroup
+                          iconF7: arrow_left
+                          popupClose: .popup.pop-new-bay-group
+                    right:
+                      - component: oh-link
+                        config:
+                          action: rule
+                          actionRule: =props.manageRule
+                          actionRuleContext:
+                            modify: SETUP
+                            modifyItem: =vars.selectedGroup
+                          clearVariable: selectedGroup
+                          text: Create
+                          visible: =!!vars.selectedGroup
+                - component: oh-list
+                  config:
+                    style:
+                      overflow-y: scroll
+                  slots:
+                    default:
+                      - component: oh-repeater
+                        config:
+                          filter: loop.ohItem.type=='Group' && !loop.ohItem.tags.includes('Bayesian
+                            Sensor')
+                          for: ohItem
+                          fragment: true
+                          itemTags: ","
+                          sourceType: itemsWithTags
+                        slots:
+                          default:
+                            - component: oh-list-item
+                              config:
+                                action: variable
+                                actionVariable: selectedGroup
+                                actionVariableValue: =loop.ohItem.name
+                                after: =loop.ohItem.name
+                                checked: =(vars.selectedGroup == loop.ohItem.name)
+                                name: groupSelectRadio
+                                radio: true
+                                title: =loop.ohItem.label
+    - component: f7-popup
+      config:
+        class:
+          - pop-create-group
+      slots:
+        default:
+          - component: f7-page
+            config:
+              style:
+                overflow-y: hidden
+              stylesheet: |
+                .item-title, .item-title-row {
+                  width: 100%;                  
+                }
+            slots:
+              default:
+                - component: f7-navbar
+                  config:
+                    title: Create New Sensor Group
+                  slots:
+                    left:
+                      - component: oh-link
+                        config:
+                          iconF7: chevron_left
+                          popupClose: .popup.pop-create-group
+                          text: Cancel
+                          clearVariable:
+                            - createGroupName
+                            - createGroupLabel
+                            - createGroupProxy
+                            - createGroupPosterior
+                - component: oh-list
+                  config:
+                    mediaList: true
+                    style:
+                      margin-left: 5px
+                      margin-right: 5px
+                  slots:
+                    default:
+                      - component: f7-list-item
+                        slots:
+                          title:
+                            - component: f7-row
+                              config:
+                                style:
+                                  width: 100%
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      style:
+                                        width: 25%
+                                      text: Name
+                                  - component: oh-input
+                                    config:
+                                      clearButton: true
+                                      defaultValue: NewGroup
+                                      errorMessage: Required. Alphanumeric & underscores only
+                                      pattern: "[A-Za-z0-9_]*"
+                                      placeholder: Name
+                                      style:
+                                        width: 75%
+                                      type: text
+                                      validate: true
+                                      variable: createGroupName
+                      - component: f7-list-item
+                        slots:
+                          title:
+                            - component: f7-row
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      style:
+                                        width: 25%
+                                      text: Label
+                                  - component: oh-input
+                                    config:
+                                      clearButton: true
+                                      defaultValue: New Group
+                                      placeholder: Label
+                                      style:
+                                        width: 75%
+                                      type: text
+                                      variable: createGroupLabel
+                      - component: f7-list-item
+                        slots:
+                          title:
+                            - component: f7-row
+                              config:
+                                style:
+                                  justify-content: space-between
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      style:
+                                        width: 25%
+                                      text: New Proxy Item
+                                  - component: oh-link
+                                    config:
+                                      action: variable
+                                      actionVariable: createGroupProxy
+                                      actionVariableValue: =!vars.createGroupProxy
+                                    slots:
+                                      default:
+                                        - component: f7-checkbox
+                                          config:
+                                            checked: =!vars.createGroupProxy
+                      - component: f7-list-item
+                        slots:
+                          title:
+                            - component: f7-row
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      style:
+                                        width: 25%
+                                      text: New Posterior Item
+                                  - component: oh-link
+                                    config:
+                                      action: variable
+                                      actionVariable: createGroupPosterior
+                                      actionVariableValue: =!vars.createGroupPosterior
+                                    slots:
+                                      default:
+                                        - component: f7-checkbox
+                                          config:
+                                            checked: =!!vars.createGroupPosterior
+                - component: oh-button
+                  config:
+                    action: rule
+                    actionRule: =props.manageRule
+                    actionRuleContext:
+                      modify: CREATE
+                      modifyItem: =vars.createGroupName
+                      modifyValue:
+                        label: =vars.createGroupLabel
+                        posterior: =!!vars.createGroupPosterior
+                        proxy: =!vars.createGroupProxy
+                    bgColor: blue
+                    fill: true
+                    large: true
+                    popupClose: .popup.pop-create-group
+                    style:
+                      margin-left: 37%
+                      width: 26%
+                    text: Create
+                    clearVariable:
+                      - createGroupName
+                      - createGroupLabel
+                      - createGroupProxy
+                      - createGroupPosterior
