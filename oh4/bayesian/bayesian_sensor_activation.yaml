@@ -21,7 +21,7 @@ actions:
 
         //Logging
 
-        console.loggerName = 'org.openhab.automation.rule.bayesiansensor';
+        console.loggerName = 'org.openhab.automation.rule.bayesiansensor'
 
         //osgi.getService('org.apache.karaf.log.core.LogService').setLevel(console.loggerName,
         'INFO');
@@ -32,19 +32,19 @@ actions:
         //Bayesian Probability Calculation
 
         function updatePrior (updPrior, updPTrue, updPFalse, updItem) {
-          var numerator = updPTrue * updPrior;
-          var denominator = numerator + updPFalse * (1 - updPrior);
-          console.debug(`${updItem}: ${updPrior.toString()} -> ${(numerator / denominator).toString()}`);
-          return numerator / denominator;
+          var numerator = updPTrue * updPrior
+          var denominator = numerator + updPFalse * (1 - updPrior)
+          console.debug(`${updItem}: ${updPrior.toString()} -> ${(numerator / denominator).toString()}`)
+          return numerator / denominator
         }
 
 
         //Find All Bayesian Sensor Groups for Event Item
 
-        var parentGroups = items.getItem(event.itemName).groupNames;
+        var parentGroups = items.getItem(event.itemName).groupNames
 
         var sensorGroups = parentGroups.filter(x =>
-        items.getItem(x).tags.includes('Bayesian Sensor'));
+        items.getItem(x).tags.includes('Bayesian Sensor'))
 
 
         //Define Test Object
@@ -63,30 +63,41 @@ actions:
         Impacted Sensor Group
 
         for (var sensorGroup of sensorGroups) {
-          var metaList = items[sensorGroup].getMetadata('BayesianSensor');
+          var metaList = items[sensorGroup].getMetadata('BayesianSensor')
           if (!metaList || !metaList.configuration) {
-            console.error(`Bayesian metadata not configured for ${sensorGroup}`);
+            console.error(`Bayesian metadata not configured for ${sensorGroup}`)
           } else {
             var sensorConfig = metaList.configuration;
-            var obsList = sensorConfig.obs;
-            var prior = sensorConfig.prior || 0.5;
+            if (sensorConfig.sensors && !sensorConfig.obs) {
+              console.warn('OH3 configuration found. Updating...')
+              sensorConfig.obs = utils.javaMapToJsObj(sensorConfig.sensors)
+              delete sensorConfig.sensors
+              items[sensorGroup].replaceMetadata('BayesianSensor', metaList.value, sensorConfig)
+            }
+            if (sensorConfig?.obs?.keySet) {
+              console.warn('OH3 configuration format found. Updating...')
+              sensorConfig.obs = utils.javaMapToJsObj(sensorConfig.obs)
+              items[sensorGroup].replaceMetadata('BayesianSensor', metaList.value, sensorConfig)
+            }
+            var obsList = sensorConfig.obs
+            var prior = sensorConfig.prior || 0.5
               for (var checkItem in obsList) {
                 if (sensorTest[obsList[checkItem].testType || 'eq'](checkItem, obsList)) {
                   if (obsList[checkItem].decay) {
                     var now = time.toZDT()
-                    var changedTime = time.toZDT(items.getItem(obsList[checkItem].decay.timestamp || checkItem + '_TS'));
-                    var decayTime = time.Duration.between(changedTime,now).toMinutes();
-                    var numSteps = Math.floor(decayTime / (obsList[checkItem].decay.timeStep || 5));
-                    var probTrue = Math.max((obsList[checkItem].decay.decayMin || .6),obsList[checkItem].pTrue - (numSteps * obsList[checkItem].decay.decayStep));
+                    var changedTime = time.toZDT(items.getItem(obsList[checkItem].decay.timestamp || checkItem + '_TS'))
+                    var decayTime = time.Duration.between(changedTime,now).toMinutes()
+                    var numSteps = Math.floor(decayTime / (obsList[checkItem].decay.timeStep || 5))
+                    var probTrue = Math.max((obsList[checkItem].decay.decayMin || .6),obsList[checkItem].pTrue - (numSteps * obsList[checkItem].decay.decayStep))
                   } else {
-                    var probTrue = obsList[checkItem].pTrue;
+                    var probTrue = obsList[checkItem].pTrue
                   }
                   prior = updatePrior(prior, probTrue,obsList[checkItem].pFalse,checkItem)
                 }
               }
-            if (sensorConfig.posterior) items.getItem(sensorConfig.posterior).postUpdate(prior.toString());
-            items.getItem(sensorConfig.proxy).sendCommandIfDifferent((prior >= sensorConfig.threshold) ? (sensorConfig.trueState || 'ON') : (sensorConfig.falseState || 'OFF'));
-            console.debug(`${sensorGroup} new probability of ${prior} ${(prior >= sensorConfig.threshold) ? ' is over ' : 'is under '} ${sensorConfig.threshold}`);
+            if (sensorConfig.posterior) items.getItem(sensorConfig.posterior).postUpdate(prior.toString())
+            items.getItem(sensorConfig.proxy).sendCommandIfDifferent((prior >= sensorConfig.threshold) ? (sensorConfig.trueState || 'ON') : (sensorConfig.falseState || 'OFF'))
+            console.debug(`${sensorGroup} new probability of ${prior} ${(prior >= sensorConfig.threshold) ? ' is over ' : 'is under '} ${sensorConfig.threshold}`)
           }
         }
     type: script.ScriptAction
