@@ -1,0 +1,255 @@
+uid: jag_rules:bayesian_sensor_management
+label: Bayesian Sensor Management
+description: Respond to events from Bayesian Sensor widgets
+configDescriptions: []
+triggers: []
+conditions: []
+actions:
+  - inputs: {}
+    id: "2"
+    configuration:
+      type: application/javascript;version=ECMAScript-2021
+      script: >-
+        /****
+
+        / This Script provides administrative functions
+
+        / for the Bayesian sensor control system.
+
+        ****/
+
+
+        //Logging
+
+        console.loggerName = 'org.openhab.automation.rule.BayesianModify';
+
+        //osgi.getService('org.apache.karaf.log.core.LogService').setLevel(console.loggerName,
+        'DEBUG');
+
+        console.debug('Bayesian Management - Running')
+
+
+        //Check Widget Item
+
+        var widgetItem =
+        items.getItem('Widget_Settings_Bayesian_Sensor_Details',true)
+
+        if (!widgetItem) {
+          console.warn('No widget control item: creating...')
+          var newConfig = {
+            name: 'Widget_Settings_Bayesian_Sensor_Details',
+            type:'Number',
+            label: 'Bayesian Sensor Detail Widget Refresh',
+          }
+          items.addItem(newConfig)  
+        }
+
+
+        //Build Default BayesianSensor Metadata
+
+        var defaultConfig = {
+          proxy: 'Proxy_Item_Name',
+          trueState: 'ON',
+          falseState: 'OFF',
+          prior: 0.5,
+          threshold: 0.9,
+          obs: {}
+        }
+
+
+        //Audit Function
+
+        var runAudit = function (sensorItem) {
+          var sensorMetadata =  sensorItem.getMetadata('BayesianSensor')
+          if (!sensorMetadata) {
+            console.error(sensorItem.name + ' has no BayesianSensor metadata')
+          } else {
+            var errors = []
+            var warnings = []
+            var sensorConfig = sensorMetadata['configuration']
+            if (!sensorConfig) {
+              errors.push(sensorItem.name + ' BayesianSensor metadata has no configuration settings')
+              var sensorConfig = {}
+            } else {
+              if (!sensorConfig.proxy) errors.push('No proxy item set')
+              if (!sensorConfig.threshold) errors.push('threshold not set')
+              if (!sensorConfig.prior) warnings.push('prior not set - default 0.5 will be used')
+              if (!sensorConfig.trueState) warnings.push('trueState not set - default ON will be used')
+              if (!sensorConfig.falseState) warnings.push('falseState not set - default OFF will be used')
+              if (!sensorConfig.posterior) warnings.push('posterior not set - probability will not be recorded')
+              if (sensorConfig.sensors && !sensorConfig.obs) {
+                console.warn('OH3 configuration found. Updating...')
+                sensorConfig.obs = utils.javaMapToJsObj(sensorConfig.sensors)
+                delete sensorConfig.sensors
+              }
+              if (sensorConfig.sensors) warnings.push('old sensor config still present - will be ignored')
+              if (sensorConfig?.obs?.keySet) {
+                console.warn('OH3 configuration format found. Updating...')
+                sensorConfig.obs = utils.javaMapToJsObj(sensorConfig.obs)
+              }
+              if (!sensorConfig.obs) {
+                errors.push('observation array not set')
+              } else {
+                var obsList = Object.keys(sensorConfig.obs)
+                if (obsList.length == 0) {
+                  errors.push('no observations configured')
+                } else {
+                  var groupMembers = sensorItem.members
+                  var memberNames = groupMembers.map(function(memb) {return memb.name})
+                  var extraConfigs = obsList.filter(x => !memberNames.includes(x))
+                  if (extraConfigs.length > 0) warnings.push(extraConfigs.toString() + ((extraConfigs.length == 1) ? ' is not a group member item' : ' are not group member items') + ' - configurations will be ignored')
+                  for (var groupMember of groupMembers) {
+                    if (!sensorConfig.obs[groupMember.name]) {
+                      errors.push('No observation configuration for group member ' + groupMember.name)
+                    } else {
+                      if (sensorConfig.obs[groupMember.name].testState === undefined) errors.push(groupMember.name + ' has no testState')
+                      if (sensorConfig.obs[groupMember.name].pTrue === undefined) errors.push(groupMember.name + ' has no pTrue')
+                      if (sensorConfig.obs[groupMember.name].pFalse === undefined) errors.push(groupMember.name + ' has no pFalse')
+                      if (sensorConfig.obs[groupMember.name].testType !== undefined && !(['gt','lt','bt','neq','list','eq']).includes(sensorConfig.obs[groupMember.name].testType)) {
+                        warnings.push(groupMember.name + ' has invalid testType - default "equals" will be used')
+                      }
+                      var decaySettings = sensorConfig.obs[groupMember.name].decay
+                      if (decaySettings !== undefined) {
+                        if (decaySettings.decayStep === undefined) errors.push(groupMember.name + ' decay set with no decayStep')
+                        if (decaySettings.timestamp === undefined) warnings.push(groupMember.name + ' has no decay timestamp - default ' + groupMember.name + '_TS will be used')
+                        if (decaySettings.timeStep === undefined) warnings.push(groupMember.name + ' has no decay timeStep - default step of 5 minutes will be used')
+                        if (decaySettings.decayMin === undefined) warnings.push(groupMember.name + ' has no decayMin - default minimum probability of 0.6 will be used')
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            var newConfig = {}
+            for (var property in sensorConfig) {
+              if (property != 'aduit') newConfig[property] = sensorConfig[property]
+            }
+            newConfig.audit = {}
+            if (errors.length > 0) {
+              console.error(sensorItem.name + ' Configuration Errors:\n\t' + errors.join('\n\t'))
+              newConfig.audit.errors = {number: errors.length, list: Object.fromEntries(errors.entries())}
+            }
+            if (warnings.length > 0) {
+              console.warn(sensorItem.name + ' Configuration Warnings:\n\t' + warnings.join('\n\t'))
+              newConfig.audit.warnings = {number: warnings.length, list: Object.fromEntries(warnings.entries())}
+            }
+            if (warnings.length == 0 && errors.length == 0) {
+              console.info(sensorItem.name + ' Configuration Audit: Passed')
+              newConfig.audit.passed = true
+            }
+            sensorItem.replaceMetadata('BayesianSensor', sensorMetadata.value, newConfig)
+          }  
+        }
+
+
+        console.debug(`Modification: ${modify}`)
+
+        console.debug(`Item: ${modifyItem}`)
+
+
+        //Make Requested Modificaiton
+
+        switch (modify) {
+          case 'CREATE':
+            if (!items.getItem(modifyItem,true)) {
+              console.debug('Creating new bayesian group')
+              modifyValue = utils.javaMapToJsObj(modifyValue)
+              var groupConfig = {
+                name: modifyItem,
+                type: 'Group',
+                label: modifyValue.label || 'New Bayesian Group'
+              }
+              items.addItem(groupConfig)
+              if (modifyValue.proxy) {
+                console.debug(`Adding proxy item ${modifyItem + '_Proxy'}`)
+                var proxyConfig = {
+                  name: modifyItem + '_Proxy',
+                  type:'Switch',
+                  label: groupConfig.label + ' Proxy',
+                }
+                items.addItem(proxyConfig)
+                defaultConfig.proxy = proxyConfig.name
+              }
+              if (modifyValue.posterior) {
+                console.debug(`Adding Posterior item ${modifyItem + '_Posterior'}`)
+                var posteriorConfig = {
+                  name: modifyItem + '_Posterior',
+                  type:'Number',
+                  label: groupConfig.label + ' Posterior',
+                }
+                items.addItem(posteriorConfig)
+                defaultConfig.posterior = posteriorConfig.name
+              }
+            } else {
+              console.error('Item name already exists: Cannot create new item')
+              break
+            }
+          case 'SETUP':
+            console.debug('Initializing bayesian sensor settings')
+            items.getItem(modifyItem).addTags('Bayesian Sensor')
+            items.getItem(modifyItem).replaceMetadata('BayesianSensor',' ', defaultConfig)
+            break
+          case 'DELETE':
+            console.debug('Removing observation item')
+            items.getItem(modifyValue).removeGroups(modifyItem)
+            var sensorMetadata = items.getItem(modifyItem).getMetadata('BayesianSensor')
+            var sensorConfig = sensorMetadata.configuration
+            delete sensorConfig.obs[modifyValue]
+            items.getItem(modifyItem).replaceMetadata('BayesianSensor', sensorMetadata.value, sensorConfig)
+            break
+          case 'ADD':
+            console.debug('Adding observation item')
+            if (!items.getItem(modifyValue,true)) {
+              console.warn(`Item ${modifyValue} does not exist: cannot add to ${modifyItem}`)
+              break
+            }
+            items.getItem(modifyValue).addGroups(modifyItem)
+            var sensorMetadata = items.getItem(modifyItem).getMetadata('BayesianSensor')
+            var sensorConfig = sensorMetadata.configuration
+            sensorConfig.obs[modifyValue] = {testState: 'ON', pTrue: 0.75, pFalse: 0.5}
+            items.getItem(modifyItem).replaceMetadata('BayesianSensor', sensorMetadata.value, sensorConfig)
+            break
+          case 'UPDATEOBS':
+            console.debug('Updating observation item')
+            var sensorMetadata = items.getItem(modifyItem).getMetadata('BayesianSensor')
+            var sensorConfig = sensorMetadata.configuration
+            if (!modifyValue) {
+              console.warn('No new configuration provided: update cancelled')
+              break
+            } else if (!modifyObs) {
+              console.warn('No observation selected: update cancelled')
+              break
+            }
+            modifyValue = utils.javaMapToJsObj(modifyValue)
+            if (modifyValue.testType && !(['gt','lt','bt','neq','list','eq']).includes(modifyValue.testType)) {
+              console.warn(`Invalid test type ${modifyValue.testType}: ignoring`)
+              if (sensorConfig.obs[modifyObs].testType) {
+                modifyValue.testType = sensorConfig.obs[modifyObs].testType
+              } else {
+                delete modifyValue.testType
+              }
+            }
+            if (modifyValue.testState && Number(modifyValue.testState)) modifyValue.testState = Number(modifyValue.testState)
+            if (modifyValue.pTrue) modifyValue.pTrue = Number(modifyValue.pTrue)
+            if (modifyValue.pFalse) modifyValue.pFalse = Number(modifyValue.pFalse)
+            sensorConfig.obs[modifyObs] = modifyValue
+            items.getItem(modifyItem).replaceMetadata('BayesianSensor', sensorMetadata.value, sensorConfig)
+            break
+          case 'AUDIT':
+            console.debug('Bayesian Sensor Configuration Check')
+            runAudit(items.getItem(modifyItem))
+            break
+          case 'FULLAUDIT':
+            console.debug('Bayesian Sensor Full System Configuration Check')
+            var sensorList = items.getItemsByTag('Bayesian Sensor')
+            if (!sensorList) console.warn('No Bayesian Sensors Configured')
+            for (var sensor of sensorList) {
+              runAudit(sensor)
+            }
+            break
+        }
+          
+        //Cleanup
+
+        items['Widget_Settings_Bayesian_Sensor_Details'].postUpdate(Math.random())
+    type: script.ScriptAction
