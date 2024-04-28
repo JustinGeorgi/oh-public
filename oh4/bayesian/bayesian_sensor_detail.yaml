@@ -1,0 +1,512 @@
+uid: bayesian_sensor_detail
+tags: []
+props:
+  parameters:
+    - context: item
+      description: Bayesian sensor item
+      name: sensor
+      required: true
+      type: TEXT
+      groupName: general
+    - context: rule
+      default: bayesian_widget_management
+      description: Linked rule for widget functions
+      label: Bayesian Management Rule
+      name: manageRule
+      required: false
+      type: TEXT
+      groupName: general
+    - default: "true"
+      description: Show labels for sensor items
+      label: Use Item Labels
+      name: useLabel
+      required: false
+      type: BOOLEAN
+  parameterGroups:
+    - name: general
+      label: General settings
+component: f7-block
+config:
+  stylesheet: |
+    .edit-grid {
+      grid-row-gap: 2px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 3fr 1fr 3fr 28px;
+      grid-template-rows: 1fr 1fr;
+      grid-template-areas:
+        "type-label type-input true-label true-input action-buttons" 
+        "state-label state-input false-label false-input action-buttons";
+      justify-items: center;
+    }
+    .edit-label {
+      font-weight: bold;
+    }
+    .edit-input {
+      padding-left: 3px;
+    }
+  class:
+    - block-narrow
+slots:
+  default:
+    - component: oh-repeater
+      config:
+        fetchMetadata: BayesianSensor
+        filter: loop.sensor.name == props.sensor
+        for: sensor
+        fragment: true
+        itemTags: Bayesian Sensor
+        key: =Math.random() + items.Widget_Settings_Bayesian_Sensor_Details.state
+        sourceType: itemsWithTags
+      slots:
+        default:
+          - component: f7-row
+            config:
+              style:
+                width: min(700px,100%)
+            slots:
+              default:
+                - component: f7-col
+                  slots:
+                    default:
+                      - component: oh-label-card
+                        config:
+                          label: =Number.parseFloat(items[loop.sensor.metadata.BayesianSensor.config.posterior].state).toFixed(3)
+                          style:
+                            width: 700px
+                          trendItem: =loop.sensor.metadata.BayesianSensor.config.posterior
+          - component: f7-row
+            config:
+              style:
+                width: min(720px,100%)
+            slots:
+              default:
+                - component: f7-col
+                  slots:
+                    default:
+                      - component: f7-block-title
+                        slots:
+                          default:
+                            - component: Label
+                              config:
+                                text: Sensor Details
+                      - component: f7-list
+                        slots:
+                          default:
+                            - component: oh-repeater
+                              config:
+                                for: detail
+                                fragment: true
+                                in:
+                                  - default: 0.5 (Default)
+                                    label: Prior
+                                    value: prior
+                                  - default: ERROR
+                                    label: Threshold
+                                    value: threshold
+                                  - default: ON (Default)
+                                    label: "True"
+                                    value: trueState
+                                  - default: OFF (Default)
+                                    label: "False"
+                                    value: falseState
+                                  - default: None
+                                    label: Prob Item
+                                    value: posterior
+                                  - default: ERROR
+                                    label: Proxy Item
+                                    value: proxy
+                                sourceType: array
+                              slots:
+                                default:
+                                  - component: oh-list-item
+                                    config:
+                                      after: =loop.sensor.metadata.BayesianSensor.config[loop.detail.value] ||
+                                        loop.detail.default
+                                      title: =loop.detail.label
+          - component: f7-row
+            config:
+              style:
+                width: min(720px,100%)
+            slots:
+              default:
+                - component: f7-col
+                  slots:
+                    default:
+                      - component: f7-block-title
+                        slots:
+                          default:
+                            - component: Label
+                              config:
+                                text: Sensor Observations
+                      - component: f7-list
+                        config:
+                          mediaList: true
+                          accordionList: true
+                          style:
+                            max-height: 200px
+                            overflow-y: scroll
+                        slots:
+                          default:
+                            - component: oh-repeater
+                              config:
+                                key: =Math.random + (vars.idxEdit || -1)
+                                for: observation
+                                fragment: true
+                                groupItem: =props.sensor
+                                sourceType: itemsInGroup
+                              slots:
+                                default:
+                                  - component: f7-list-item
+                                    config:
+                                      accordionItem: =loop.observation_idx + 1 == (vars.idxEdit || -1)
+                                      noChevron: true
+                                      accordionItemOpened: =loop.observation_idx + 1 == (vars.idxEdit || -1)
+                                      after: =`Current - ${items[loop.observation.name].state}`
+                                      subtitle: =((loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testType
+                                        !==
+                                        undefined)?(loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testType
+                                        + " - "):("eq - ")) +
+                                        ((JSON.stringify(loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testState).includes('['))?(loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testState.join(',
+                                        ')):(JSON.stringify(loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testState).replaceAll('"','')))
+                                      title: =((props.useLabel)?(loop.observation.label):(loop.observation.name))
+                                      swipeout: true
+                                      style:
+                                        pointer-events: =((vars.idxEdit || -1) > 0)?('none'):('auto')
+                                    slots:
+                                      default:
+                                        - component: f7-swipeout-actions
+                                          config:
+                                            left: true
+                                          slots:
+                                            default:
+                                              - component: oh-link
+                                                config:
+                                                  class:
+                                                    - swipeout-close
+                                                  action: rule
+                                                  actionRule: =props.manageRule
+                                                  actionRuleContext:
+                                                    modify: DELETE
+                                                    modifyItem: =props.sensor
+                                                    modifyValue: =loop.observation.name
+                                                  bgColor: red
+                                                  iconF7: trash_fill
+                                              - component: oh-link
+                                                config:
+                                                  class:
+                                                    - swipeout-close
+                                                  action: variable
+                                                  actionVariable: idxEdit
+                                                  actionVariableValue: =loop.observation_idx + 1
+                                                  bgColor: blue
+                                                  iconF7: pencil
+                                              - component: f7-link
+                                                config:
+                                                  class:
+                                                    - swipeout-close
+                                                  bgColor: green
+                                                  href: ='/settings/items/' + loop.observation.name
+                                                  iconF7: arrowshape_turn_up_right_fill
+                                        - component: f7-accordion-content
+                                          config:
+                                            style:
+                                              pointer-events: auto
+                                          slots:
+                                            default:
+                                              - component: div
+                                                config:
+                                                  class:
+                                                    - edit-grid
+                                                slots:
+                                                  default:
+                                                    - component: Label
+                                                      config:
+                                                        text: Test type
+                                                        class:
+                                                          - edit-label
+                                                        style:
+                                                          grid-area: type-label
+                                                    - component: oh-input
+                                                      config:
+                                                        defaultValue: =loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testType
+                                                          || 'eq'
+                                                        type: text
+                                                        variable: editTestType
+                                                        outline: true
+                                                        class:
+                                                          - edit-input
+                                                        style:
+                                                          grid-area: type-input
+                                                    - component: Label
+                                                      config:
+                                                        text: Test state
+                                                        class:
+                                                          - edit-label
+                                                        style:
+                                                          grid-area: state-label
+                                                    - component: oh-input
+                                                      config:
+                                                        defaultValue: =loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testState
+                                                        type: text
+                                                        variable: editTestState
+                                                        outline: true
+                                                        class:
+                                                          - edit-input
+                                                        style:
+                                                          grid-area: state-input
+                                                    - component: Label
+                                                      config:
+                                                        text: True prior
+                                                        class:
+                                                          - edit-label
+                                                        style:
+                                                          grid-area: true-label
+                                                    - component: oh-input
+                                                      config:
+                                                        defaultValue: =loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].pTrue
+                                                        type: number
+                                                        step: 0.05
+                                                        max: 1
+                                                        min: 0
+                                                        variable: editPTrue
+                                                        outline: true
+                                                        class:
+                                                          - edit-input
+                                                        style:
+                                                          grid-area: true-input
+                                                    - component: Label
+                                                      config:
+                                                        text: False prior
+                                                        class:
+                                                          - edit-label
+                                                        style:
+                                                          grid-area: false-label
+                                                    - component: oh-input
+                                                      config:
+                                                        defaultValue: =loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].pFalse
+                                                        type: number
+                                                        step: 0.05
+                                                        max: 1
+                                                        min: 0
+                                                        variable: editPFalse
+                                                        outline: true
+                                                        class:
+                                                          - edit-input
+                                                        style:
+                                                          grid-area: false-input
+                                                    - component: f7-col
+                                                      config:
+                                                        style:
+                                                          display: flex
+                                                          flex-direction: column
+                                                          grid-area: action-buttons
+                                                          justify-content: space-around
+                                                          align-items: center
+                                                          height: 100%
+                                                      slots:
+                                                        default:
+                                                          - component: oh-link
+                                                            config:
+                                                              iconF7: xmark_circle_fill
+                                                              iconColor: red
+                                                              clearVariable:
+                                                                - idxEdit
+                                                                - editTestType
+                                                                - editTestState
+                                                                - editPTrue
+                                                                - editPFalse
+                                                              iconSize: 24
+                                                          - component: oh-link
+                                                            config:
+                                                              iconF7: checkmark_circle_fill
+                                                              iconColor: green
+                                                              action: rule
+                                                              actionRule: =props.manageRule
+                                                              actionRuleContext:
+                                                                modify: UPDATEOBS
+                                                                modifyItem: =props.sensor
+                                                                modifyObs: =loop.observation.name
+                                                                modifyValue:
+                                                                  testType: =vars.editTestType ||
+                                                                    loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testType
+                                                                  testState: =vars.editTestState ||
+                                                                    loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].testState
+                                                                  pTrue: =vars.editPTrue ||
+                                                                    loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].pTrue
+                                                                  pFalse: =vars.editPFalse ||
+                                                                    loop.sensor.metadata.BayesianSensor.config.obs[loop.observation.name].pFalse
+                                                              iconSize: 24
+                                                              clearVariable:
+                                                                - idxEdit
+                                                                - editTestType
+                                                                - editTestState
+                                                                - editPTrue
+                                                                - editPFalse
+          - component: f7-row
+            config:
+              style:
+                width: min(720px,100%)
+            slots:
+              default:
+                - component: f7-col
+                  slots:
+                    default:
+                      - component: f7-block-title
+                        slots:
+                          default:
+                            - component: Label
+                              config:
+                                text: Sensor Audit
+                      - component: f7-list
+                        config:
+                          mediaList: true
+                        slots:
+                          default:
+                            - component: oh-list-item
+                              config:
+                                icon: f7:question_circle_fill
+                                iconColor: black
+                                title: No audit information
+                                visible: =!loop.sensor.metadata.BayesianSensor.config?.audit
+                            - component: oh-list-item
+                              config:
+                                icon: f7:checkmark_circle_fill
+                                iconColor: green
+                                title: Audit passed - no errors or warnings
+                                visible: =!!loop.sensor.metadata.BayesianSensor.config?.audit?.passed
+                            - component: oh-repeater
+                              config:
+                                for: auditError
+                                fragment: true
+                                rangeStart: 1
+                                rangeStop: =Number(loop.sensor.metadata.BayesianSensor.config.audit.errors.number)
+                                sourceType: range
+                                visible: =!!loop.sensor.metadata.BayesianSensor.config?.audit?.errors?.number
+                              slots:
+                                default:
+                                  - component: oh-list-item
+                                    config:
+                                      icon: f7:exclamationmark_circle_fill
+                                      iconColor: red
+                                      title: =loop.sensor.metadata.BayesianSensor.config.audit.errors.list[loop.auditError-1]
+                            - component: oh-repeater
+                              config:
+                                for: auditWarning
+                                fragment: true
+                                rangeStart: 1
+                                rangeStop: =Number(loop.sensor.metadata.BayesianSensor.config.audit.warnings.number)
+                                sourceType: range
+                                visible: =!!loop.sensor.metadata.BayesianSensor.config?.audit?.warnings?.number
+                              slots:
+                                default:
+                                  - component: oh-list-item
+                                    config:
+                                      icon: f7:flag_circle_fill
+                                      iconColor: yellow
+                                      title: =loop.sensor.metadata.BayesianSensor.config.audit.warnings.list[loop.auditWarning-1]
+          - component: f7-row
+            config:
+              style:
+                width: min(720px,100%)
+            slots:
+              default:
+                - component: f7-col
+                  slots:
+                    default:
+                      - component: f7-list
+                        config:
+                          style:
+                            width: 100%
+                        slots:
+                          default:
+                            - component: oh-list-item
+                              config:
+                                action: analyzer
+                                actionAnalyzerItems: =[loop.sensor.metadata.BayesianSensor.config.proxy,(loop.sensor.metadata.BayesianSensor.config.posterior)?(loop.sensor.metadata.BayesianSensor.config.posterior):('')]
+                                listButton: true
+                                title: Show Chart
+                            - component: oh-list-item
+                              config:
+                                action: rule
+                                actionRule: =props.manageRule
+                                actionRuleContext:
+                                  modify: AUDIT
+                                  modifyItem: =loop.sensor.name
+                                listButton: true
+                                title: Audit Configuration
+                            - component: oh-list-item
+                              config:
+                                action: variable
+                                actionVariable: showNewObs
+                                actionVariableValue: true
+                                listButton: true
+                                title: Add Observation Item
+                                visible: =!vars.showNewObs
+                            - component: f7-list-item-row
+                              config:
+                                style:
+                                  padding-top: 5px
+                                  margin-bottom: 2px
+                                visible: =!!vars.showNewObs
+                              slots:
+                                default:
+                                  - component: Label
+                                    config:
+                                      text: Observation Name
+                                      style:
+                                        flex-shrink: 0
+                                        padding-top: 1px
+                                        margin-right: 5px
+                                        margin-left: 10px
+                                  - component: oh-input
+                                    config:
+                                      type: text
+                                      outline: true
+                                      variable: addObsItem
+                                      placeholder: Name of Observation Item
+                                      style:
+                                        flex-grow: 1
+                                  - component: f7-row
+                                    config:
+                                      style:
+                                        flex-grow: 0
+                                        flex-wrap: nowrap
+                                        justify-content: flex-end
+                                        width: min-content
+                                    slots:
+                                      default:
+                                        - component: oh-link
+                                          config:
+                                            action: variable
+                                            actionVariable: showNewObs
+                                            actionVariableValue: false
+                                            clearVariable:
+                                              - addObsItem
+                                            iconF7: xmark_circle_fill
+                                            style:
+                                              padding: 3px 0 1px 15px
+                                        - component: oh-link
+                                          config:
+                                            action: rule
+                                            actionRule: =props.manageRule
+                                            actionRuleContext:
+                                              modify: ADD
+                                              modifyItem: =props.sensor
+                                              modifyValue: =vars.addObsItem
+                                            clearVariable:
+                                              - showNewObs
+                                              - addObsItem
+                                            iconF7: checkmark_circle_fill
+                                            style:
+                                              padding: 3px 10px 1px 15px
+                            - component: f7-list-button
+                              config:
+                                color: blue
+                                link: ='/settings/items/' + loop.sensor.name + '/metadata/BayesianSensor'
+                                title: Edit Metadata
+                            - component: f7-list-button
+                              config:
+                                color: blue
+                                link: ='/settings/items/' + loop.sensor.name
+                                title: Edit Group Item
