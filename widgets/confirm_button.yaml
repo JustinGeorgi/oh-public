@@ -66,6 +66,7 @@ slots:
         class:
           - cd-button
         style:
+          width: 100%
           --countdown-duration: =`${(props.countdown || '10')}s`
           --countdown-background: =props.style && props.style.background
           --countdown-bar-color: =props.barColor
@@ -117,6 +118,7 @@ slots:
                 - countdown
               text: =props.confirmText || 'Confirm'
               style:
+                width: 100%
                 visibility: hidden
           - component: oh-button
             config:
